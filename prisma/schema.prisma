@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id             String          @id @default(cuid())
+  name           String          @unique
+  colorTag       String
+  currentBalance Float           @default(0)
+  createdAt      DateTime        @default(now())
+  transactions   Transaction[]
+  quickShortcuts QuickShortcut[]
+}
+
+model Category {
+  id             String          @id @default(cuid())
+  name           String          @unique
+  emoji          String
+  iconName       String          @default("circle-dollar-sign")
+  type           String
+  weeklyBudget   Float?
+  monthlyBudget  Float?
+  transactions   Transaction[]
+  quickShortcuts QuickShortcut[]
+  budgetTargets  BudgetTarget[]
+}
+
+model Transaction {
+  id               String          @id @default(cuid())
+  accountId        String
+  categoryId       String?
+  amount           Float
+  type             String
+  description      String          @default("")
+  date             DateTime
+  linkedTransferId String?
+  createdAt        DateTime        @default(now())
+  account          Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category         Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  linkedTransfer   Transaction?    @relation("TransferPair", fields: [linkedTransferId], references: [id], onDelete: SetNull)
+  linkedFrom       Transaction[]   @relation("TransferPair")
+
+  @@index([accountId])
+  @@index([categoryId])
+  @@index([date])
+  @@index([type])
+}
+
+model QuickShortcut {
+  id            String   @id @default(cuid())
+  label         String
+  accountId     String
+  categoryId    String
+  defaultAmount Float?
+  emoji         String   @default("")
+  iconName      String   @default("zap")
+  usageCount    Int      @default(0)
+  createdAt     DateTime @default(now())
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([usageCount])
+}
+
+model BudgetTarget {
+  id            String   @id @default(cuid())
+  categoryId    String
+  period        String
+  targetAmount  Float
+  effectiveFrom DateTime @default(now())
+  category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+}
