@@ -15,6 +15,7 @@
     "pwa:assets": "node scripts/generate-pwa-assets.mjs",
     "cron:notifications": "node --env-file=.env scripts/cron-once.mjs",
     "cron:scheduler": "node --env-file=.env scripts/notification-scheduler.mjs",
+    "import:excel": "node --env-file=.env scripts/import-excel.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -41,7 +42,8 @@
     "sharp": "^0.35.3",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "xlsx": "^0.18.5"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
