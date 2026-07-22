@@ -34,7 +34,7 @@ type DayData = {
 export default function CalendarPage() {
   const router = useRouter();
   const { openQuickAdd } = useQuickAdd();
-  const { version } = useDataRefresh();
+  const { version, notifyDataChange } = useDataRefresh();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [days, setDays] = useState<Record<string, DayData>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -87,9 +87,11 @@ export default function CalendarPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Hapus transaksi ini?")) return;
     const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
-    if (res.ok && selectedDate) {
-      fetchDayDetail(selectedDate);
+    if (res.ok) {
+      if (selectedDate) fetchDayDetail(selectedDate);
       fetchCalendar();
+      fetch("/api/accounts", { cache: "no-store" }).then((r) => r.json()).then(setAccounts);
+      notifyDataChange();
       router.refresh();
     }
   };
@@ -97,7 +99,8 @@ export default function CalendarPage() {
   const handleEditSaved = () => {
     if (selectedDate) fetchDayDetail(selectedDate);
     fetchCalendar();
-    fetch("/api/accounts").then((r) => r.json()).then(setAccounts);
+    fetch("/api/accounts", { cache: "no-store" }).then((r) => r.json()).then(setAccounts);
+    notifyDataChange();
     router.refresh();
   };
 

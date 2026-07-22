@@ -69,7 +69,7 @@ function TransactionsContent() {
     if (filterCategory) params.set("categoryId", filterCategory);
     if (search) params.set("search", search);
 
-    const res = await fetch(`/api/transactions?${params}`);
+    const res = await fetch(`/api/transactions?${params}`, { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       setTransactions(data.transactions);
@@ -101,7 +101,12 @@ function TransactionsContent() {
   const handleDelete = async (id: string) => {
     if (!confirm("Hapus transaksi ini?")) return;
     const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
-    if (res.ok) { fetchTransactions(); router.refresh(); }
+    if (res.ok) {
+      fetchTransactions();
+      fetchAccounts();
+      notifyDataChange();
+      router.refresh();
+    }
   };
 
   const handleEditSaved = () => {
