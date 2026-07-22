@@ -1,19 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, Lock } from "lucide-react";
-import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
+import { Wallet, Delete } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const PIN_LENGTH = 6;
 
 export default function LoginPage() {
   const router = useRouter();
-  const [password, setPassword] = useState("");
+  const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [shake, setShake] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitPin = useCallback(async (value: string) => {
     setError("");
     setLoading(true);
 
@@ -21,21 +22,43 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ pin: value }),
       });
 
       if (res.ok) {
-        router.push("/");
+        router.push("/transactions");
         router.refresh();
       } else {
-        setError("Password salah. Coba lagi.");
+        setShake(true);
+        setTimeout(() => setShake(false), 500);
+        setPin("");
+        setError("PIN salah. Coba lagi.");
       }
     } catch {
       setError("Terjadi kesalahan. Periksa koneksi Anda.");
+      setPin("");
     } finally {
       setLoading(false);
     }
+  }, [router]);
+
+  const handleDigit = (digit: string) => {
+    if (loading || pin.length >= PIN_LENGTH) return;
+    const next = pin + digit;
+    setPin(next);
+    setError("");
+    if (next.length === PIN_LENGTH) {
+      submitPin(next);
+    }
   };
+
+  const handleBackspace = () => {
+    if (loading) return;
+    setPin((p) => p.slice(0, -1));
+    setError("");
+  };
+
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
 
   return (
     <div className="min-h-screen flex flex-col bg-white safe-area-top safe-area-bottom">
@@ -46,40 +69,78 @@ export default function LoginPage() {
               <Wallet size={36} color="#FFFFFF" strokeWidth={1.75} />
             </div>
             <h1 className="text-2xl font-bold text-text-primary tracking-tight">Finance Tracker</h1>
-            <p className="text-sm text-text-secondary mt-2">Kelola keuangan pribadi Anda</p>
+            <p className="text-sm text-text-secondary mt-2">Masukkan PIN untuk melanjutkan</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
-              <div className="absolute left-3.5 top-[2.6rem] text-text-tertiary pointer-events-none">
-                <Lock size={16} strokeWidth={2} />
-              </div>
-              <Input
-                type="password"
-                label="Password"
-                placeholder="Masukkan password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-10"
-                autoFocus
-              />
-            </div>
-
-            {error && (
-              <div className="px-4 py-3 rounded-xl bg-status-danger-light border border-status-danger/20">
-                <p className="text-sm text-status-danger text-center font-medium">{error}</p>
-              </div>
+          {/* PIN dots */}
+          <div
+            className={cn(
+              "flex justify-center gap-3 mb-8",
+              shake && "animate-shake"
             )}
+          >
+            {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "w-3.5 h-3.5 rounded-full border-2 transition-all duration-150",
+                  i < pin.length
+                    ? "bg-primary border-primary scale-110"
+                    : "bg-transparent border-border",
+                  error && i < pin.length && "bg-status-danger border-status-danger"
+                )}
+              />
+            ))}
+          </div>
 
-            <Button type="submit" fullWidth size="lg" disabled={loading || !password} className="mt-2">
-              {loading ? "Memproses..." : "Masuk"}
-            </Button>
-          </form>
+          {error && (
+            <div className="mb-5 px-4 py-3 rounded-xl bg-status-danger-light border border-status-danger/20">
+              <p className="text-sm text-status-danger text-center font-medium">{error}</p>
+            </div>
+          )}
+
+          {loading && (
+            <p className="text-center text-sm text-text-secondary mb-5">Memverifikasi...</p>
+          )}
+
+          {/* Numpad */}
+          <div className="grid grid-cols-3 gap-3 max-w-[280px] mx-auto">
+            {keys.map((key, i) => {
+              if (key === "") {
+                return <div key={i} />;
+              }
+              if (key === "del") {
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={handleBackspace}
+                    disabled={loading || pin.length === 0}
+                    className="h-16 flex items-center justify-center rounded-2xl text-text-secondary active:bg-background-secondary transition-colors disabled:opacity-30"
+                    aria-label="Hapus"
+                  >
+                    <Delete size={22} strokeWidth={1.75} />
+                  </button>
+                );
+              }
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => handleDigit(key)}
+                  disabled={loading}
+                  className="h-16 rounded-2xl bg-background-secondary text-xl font-semibold text-text-primary active:bg-primary-50 active:text-primary transition-colors disabled:opacity-50"
+                >
+                  {key}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       <p className="text-center text-2xs text-text-tertiary pb-6">
-        Data tersimpan aman di perangkat Anda
+        Sesi aktif 3 bulan · Data tersimpan aman
       </p>
     </div>
   );

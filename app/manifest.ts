@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Finance Tracker",
     short_name: "Finance",
     description: "Personal finance tracker — catat pengeluaran & pemasukan dengan cepat",
-    start_url: "/",
+    start_url: "/transactions",
     display: "standalone",
     background_color: "#FFFFFF",
     theme_color: "#0055A4",

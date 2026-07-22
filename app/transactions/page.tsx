@@ -18,6 +18,7 @@ import Input from "@/components/ui/Input";
 import Card from "@/components/ui/Card";
 import DynamicIcon from "@/components/ui/DynamicIcon";
 import TransactionLedger, { computePeriodSummary } from "@/components/transactions/TransactionLedger";
+import TransactionSummaryBar from "@/components/transactions/TransactionSummaryBar";
 import { LedgerSkeleton } from "@/components/ui/LoadingState";
 import { formatCurrencyLedger, cn } from "@/lib/utils";
 import { toISODateString } from "@/lib/dates";
@@ -37,31 +38,6 @@ const VIEW_TABS: { id: ViewTab; label: string }[] = [
   { id: "summary", label: "Ringkasan" },
   { id: "shortcuts", label: "Shortcut" },
 ];
-
-function SummaryBar({ income, expense, total }: { income: number; expense: number; total: number }) {
-  return (
-    <div className="grid grid-cols-3 bg-white border-b border-border-light">
-      {[
-        { label: "Pemasukan", value: income, color: "text-primary" },
-        { label: "Pengeluaran", value: expense, color: "text-status-danger" },
-        { label: "Saldo", value: total, color: total >= 0 ? "text-text-primary" : "text-status-danger" },
-      ].map((item, i) => (
-        <div
-          key={item.label}
-          className={cn(
-            "py-3 px-2 text-center",
-            i < 2 && "border-r border-border-light"
-          )}
-        >
-          <p className="text-balance-header">{item.label}</p>
-          <p className={cn("text-xs font-bold mt-1 tabular-nums", item.color)}>
-            {formatCurrencyLedger(item.value)}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function TransactionsContent() {
   const router = useRouter();
@@ -116,6 +92,12 @@ function TransactionsContent() {
   const summary = computePeriodSummary(transactions);
   const hasActiveFilters = !!(filterAccount || filterCategory || search);
 
+  const filteredAccount = filterAccount ? accounts.find((a) => a.id === filterAccount) : null;
+  const accountBalance = filteredAccount
+    ? filteredAccount.currentBalance
+    : accounts.reduce((sum, a) => sum + a.currentBalance, 0);
+  const accountLabel = filteredAccount?.name ?? (accounts.length > 1 ? "Semua akun" : accounts[0]?.name);
+
   const handleDelete = async (id: string) => {
     if (!confirm("Hapus transaksi ini?")) return;
     const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
@@ -151,8 +133,8 @@ function TransactionsContent() {
   return (
     <div className="page-container">
       {/* Sticky header */}
-      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-border-light safe-area-top">
-        <div className="flex items-center justify-between px-4 h-14">
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md safe-area-top shadow-sm">
+        <div className="flex items-center justify-between px-4 h-14 border-b border-border-light/80">
           <button
             onClick={() => setShowFilters((v) => !v)}
             className={cn("icon-btn", showFilters && "text-primary bg-primary-50")}
@@ -171,25 +153,25 @@ function TransactionsContent() {
         </div>
 
         {/* Month picker */}
-        <div className="flex items-center justify-center gap-1 pb-3 px-4">
+        <div className="flex items-center justify-center gap-1 py-2 px-4">
           <button
             onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-            className="icon-btn"
+            className="icon-btn shrink-0"
           >
             <ChevronLeft size={20} strokeWidth={2} />
           </button>
           <button
             onClick={() => !isCurrentMonth && setCurrentMonth(new Date())}
             className={cn(
-              "flex-1 text-center py-1 rounded-xl transition-colors",
-              !isCurrentMonth && "hover:bg-background-secondary"
+              "flex-1 max-w-[200px] py-2 px-3 rounded-xl bg-background-secondary border border-border-light transition-colors",
+              !isCurrentMonth && "active:bg-primary-50"
             )}
           >
-            <span className="text-sm font-bold text-text-primary capitalize">
+            <span className="text-sm font-bold text-text-primary capitalize block">
               {format(currentMonth, "MMMM yyyy", { locale: id })}
             </span>
             {!isCurrentMonth && (
-              <span className="block text-2xs text-primary font-medium mt-0.5">Kembali ke bulan ini</span>
+              <span className="block text-2xs text-primary font-medium mt-0.5">Tap untuk bulan ini</span>
             )}
           </button>
           <button
@@ -202,29 +184,38 @@ function TransactionsContent() {
         </div>
 
         {/* Tabs */}
-        <div className="flex overflow-x-auto scrollbar-hide border-b border-border-light px-2">
-          {VIEW_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                if (tab.id === "calendar") { router.push("/calendar"); return; }
-                setActiveView(tab.id);
-              }}
-              className={cn(
-                "segment-tab",
-                activeView === tab.id && "segment-tab-active"
-              )}
-            >
-              {tab.label}
-              {activeView === tab.id && (
-                <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full" />
-              )}
-            </button>
-          ))}
+        <div className="px-3 pb-2">
+          <div className="flex overflow-x-auto scrollbar-hide rounded-xl bg-background-secondary p-1 gap-0.5">
+            {VIEW_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  if (tab.id === "calendar") { router.push("/calendar"); return; }
+                  setActiveView(tab.id);
+                }}
+                className={cn(
+                  "flex-shrink-0 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all duration-150 relative",
+                  activeView === tab.id
+                    ? "bg-white text-primary shadow-sm"
+                    : "text-text-secondary"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {(activeView === "daily" || activeView === "monthly" || activeView === "summary") && (
-          <SummaryBar income={summary.income} expense={summary.expense} total={summary.total} />
+        {(activeView === "daily" || activeView === "monthly") && (
+          <TransactionSummaryBar
+            income={summary.income}
+            expense={summary.expense}
+            netto={summary.total}
+            accountBalance={accountBalance}
+            accountLabel={accountLabel}
+            accounts={accounts}
+            showBreakdown={!filteredAccount && accounts.length > 1}
+          />
         )}
 
         {/* Filter panel */}

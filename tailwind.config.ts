@@ -59,6 +59,7 @@ const config: Config = {
       animation: {
         "fade-in": "fadeIn 0.2s ease-out",
         "slide-up": "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+        shake: "shake 0.4s ease-in-out",
       },
       keyframes: {
         fadeIn: {
@@ -68,6 +69,11 @@ const config: Config = {
         slideUp: {
           from: { transform: "translateY(100%)" },
           to: { transform: "translateY(0)" },
+        },
+        shake: {
+          "0%, 100%": { transform: "translateX(0)" },
+          "20%, 60%": { transform: "translateX(-6px)" },
+          "40%, 80%": { transform: "translateX(6px)" },
         },
       },
     },

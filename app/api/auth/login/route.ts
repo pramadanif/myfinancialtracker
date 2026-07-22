@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { getSession } from "@/lib/auth";
 
-export async function POST(request: NextRequest) {
-  const { password } = await request.json();
-  const appPassword = process.env.APP_PASSWORD || "admin123";
+function verifyPin(input: string, expected: string): boolean {
+  if (input.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(input), Buffer.from(expected));
+}
 
-  if (password !== appPassword) {
-    return NextResponse.json({ error: "Password salah" }, { status: 401 });
+export async function POST(request: NextRequest) {
+  const { pin } = await request.json();
+  const appPin = process.env.APP_PIN || process.env.APP_PASSWORD || "123456";
+
+  if (!pin || typeof pin !== "string" || !verifyPin(pin, appPin)) {
+    return NextResponse.json({ error: "PIN salah" }, { status: 401 });
   }
 
   const session = await getSession();

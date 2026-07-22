@@ -20,6 +20,13 @@ export async function middleware(request: NextRequest) {
     pathname === "/apple-touch-icon.png" ||
     pathname === "/offline"
   ) {
+    if (pathname === "/login") {
+      const response = NextResponse.next();
+      const session = await getIronSession<SessionData>(request, response, sessionOptions);
+      if (session.isLoggedIn) {
+        return NextResponse.redirect(new URL("/transactions", request.url));
+      }
+    }
     return NextResponse.next();
   }
 
@@ -31,6 +38,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL("/transactions", request.url));
   }
 
   return response;

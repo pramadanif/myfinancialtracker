@@ -9,7 +9,7 @@ export default function OfflinePage() {
         Periksa internet Anda lalu coba lagi. Beberapa halaman mungkin masih tersedia dari cache.
       </p>
       <a
-        href="/"
+        href="/transactions"
         className="mt-6 px-6 py-3 rounded-xl bg-primary text-white font-semibold text-sm"
       >
         Coba lagi

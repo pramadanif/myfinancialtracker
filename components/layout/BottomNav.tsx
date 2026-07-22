@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { useQuickAdd } from "@/components/layout/QuickAddProvider";
 
 const sideTabs = [
-  { href: "/", label: "Beranda", icon: Home },
+  { href: "/dashboard", label: "Beranda", icon: Home },
   { href: "/transactions", label: "Transaksi", icon: List },
 ];
 
