@@ -40,7 +40,7 @@ const VIEW_TABS: { id: ViewTab; label: string }[] = [
 
 function TransactionsContent() {
   const router = useRouter();
-  const { version } = useDataRefresh();
+  const { version, notifyDataChange } = useDataRefresh();
   const searchParams = useSearchParams();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [activeView, setActiveView] = useState<ViewTab>("daily");
@@ -77,12 +77,17 @@ function TransactionsContent() {
     setLoading(false);
   }, [monthStart, monthEnd, filterAccount, filterCategory, search]);
 
+  const fetchAccounts = useCallback(async () => {
+    const res = await fetch("/api/accounts", { cache: "no-store" });
+    if (res.ok) setAccounts(await res.json());
+  }, []);
+
   useEffect(() => {
     fetchTransactions();
-    fetch("/api/accounts").then((r) => r.json()).then(setAccounts);
+    fetchAccounts();
     fetch("/api/categories").then((r) => r.json()).then(setCategories);
     fetch("/api/shortcuts").then((r) => r.json()).then(setShortcuts);
-  }, [fetchTransactions, version]);
+  }, [fetchTransactions, fetchAccounts, version]);
 
   const summary = computePeriodSummary(transactions);
   const hasActiveFilters = !!(filterAccount || filterCategory || search);
@@ -101,7 +106,8 @@ function TransactionsContent() {
 
   const handleEditSaved = () => {
     fetchTransactions();
-    fetch("/api/accounts").then((r) => r.json()).then(setAccounts);
+    fetchAccounts();
+    notifyDataChange();
     router.refresh();
   };
 

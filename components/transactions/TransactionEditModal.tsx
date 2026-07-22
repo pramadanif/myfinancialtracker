@@ -1,13 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
-import Numpad from "@/components/ui/Numpad";
-import AccountSelector from "@/components/ui/AccountSelector";
-import CategoryGrid from "@/components/ui/CategoryGrid";
+import TransactionFormBody from "@/components/transactions/TransactionFormBody";
 import DynamicIcon from "@/components/ui/DynamicIcon";
-import { formatCurrency, cn } from "@/lib/utils";
 import { toISODateString } from "@/lib/dates";
 import { TransactionType } from "@/types/enums";
 import type { TransactionWithRelations } from "@/types";
@@ -33,15 +28,14 @@ export default function TransactionEditModal({
   const [amount, setAmount] = useState(0);
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
-  const [type, setType] = useState<"DEBIT" | "CREDIT">("DEBIT");
+  const [tab, setTab] = useState<"expense" | "income">("expense");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const isOpen = !!transaction;
-  const isIncome = type === TransactionType.CREDIT;
 
   const filteredCategories = categories.filter((c) => {
-    if (isIncome) return c.type === "INCOME";
+    if (tab === "income") return c.type === "INCOME";
     return c.type !== "INCOME" && c.type !== "TRANSFER";
   });
 
@@ -52,7 +46,7 @@ export default function TransactionEditModal({
     setAmount(transaction.amount);
     setDescription(transaction.description || "");
     setDate(toISODateString(new Date(transaction.date)));
-    setType(transaction.type === TransactionType.CREDIT ? "CREDIT" : "DEBIT");
+    setTab(transaction.type === TransactionType.CREDIT ? "income" : "expense");
     setError("");
   }, [transaction]);
 
@@ -77,7 +71,7 @@ export default function TransactionEditModal({
           accountId,
           categoryId,
           amount,
-          type,
+          type: tab === "income" ? "CREDIT" : "DEBIT",
           description,
           date,
         }),
@@ -112,8 +106,8 @@ export default function TransactionEditModal({
           </button>
         </div>
 
-        <div className="p-5 space-y-4 pb-10">
-          <div className="flex items-center gap-3 p-3 rounded-2xl bg-background-secondary">
+        <div className="p-5 pb-10">
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-background-secondary mb-4">
             <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
               <DynamicIcon
                 name={transaction.category?.iconName || "circle-dollar-sign"}
@@ -123,68 +117,39 @@ export default function TransactionEditModal({
             </div>
             <div>
               <p className="text-sm font-semibold text-text-primary">{transaction.category?.name || "Transaksi"}</p>
-              <p className="text-xs text-text-tertiary">{formatCurrency(transaction.amount)}</p>
+              <p className="text-xs text-text-tertiary">{transaction.account.name}</p>
             </div>
           </div>
 
-          <div className="flex rounded-2xl bg-background-secondary p-1 gap-0.5">
-            {(["DEBIT", "CREDIT"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => {
-                  setType(t);
-                  setCategoryId("");
-                }}
-                className={cn(
-                  "flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors",
-                  type === t ? "bg-primary text-white shadow-button" : "text-text-secondary"
-                )}
-              >
-                {t === "DEBIT" ? "Pengeluaran" : "Pemasukan"}
-              </button>
-            ))}
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Akun</p>
-            <AccountSelector accounts={accounts} selectedId={accountId} onSelect={setAccountId} />
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Kategori</p>
-            <CategoryGrid categories={filteredCategories} selectedId={categoryId} onSelect={setCategoryId} />
-          </div>
-
-          <Input
-            label="Deskripsi"
-            placeholder="Opsional"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+          <TransactionFormBody
+            tab={tab}
+            onTabChange={(t) => {
+              if (t === "transfer") return;
+              setTab(t);
+              setCategoryId("");
+            }}
+            date={date}
+            onDateChange={setDate}
+            accountId={accountId}
+            onAccountChange={setAccountId}
+            fromAccountId=""
+            toAccountId=""
+            onFromAccountChange={() => {}}
+            onToAccountChange={() => {}}
+            categoryId={categoryId}
+            onCategoryChange={setCategoryId}
+            description={description}
+            onDescriptionChange={setDescription}
+            amount={amount}
+            onAmountChange={setAmount}
+            accounts={accounts}
+            categories={filteredCategories}
+            error={error}
+            loading={loading}
+            submitLabel="Simpan Perubahan"
+            onSubmit={handleSave}
+            hideTransfer
           />
-
-          <div>
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Nominal</p>
-            <Numpad value={amount} onChange={setAmount} />
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Tanggal</p>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3.5 py-3 rounded-xl border border-border bg-white text-sm"
-            />
-          </div>
-
-          {error && (
-            <p className="text-sm text-status-danger text-center font-medium">{error}</p>
-          )}
-
-          <Button fullWidth size="lg" onClick={handleSave} disabled={loading}>
-            {loading ? "Menyimpan..." : "Simpan Perubahan"}
-          </Button>
         </div>
       </div>
     </div>

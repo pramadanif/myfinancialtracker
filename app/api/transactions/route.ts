@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createTransaction } from "@/lib/transactions";
 
+export const dynamic = "force-dynamic";
+
+const noStore = { headers: { "Cache-Control": "no-store" } };
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const transaction = await createTransaction(body);
-    return NextResponse.json(transaction);
+    return NextResponse.json(transaction, noStore);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Gagal menyimpan transaksi";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: 400, ...noStore });
   }
 }
 
@@ -28,5 +32,5 @@ export async function GET(request: NextRequest) {
   };
 
   const result = await getTransactions(filters);
-  return NextResponse.json(result);
+  return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
 }

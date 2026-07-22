@@ -4,12 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftRight, PenLine } from "lucide-react";
 import Button from "@/components/ui/Button";
-import Numpad from "@/components/ui/Numpad";
-import AccountSelector from "@/components/ui/AccountSelector";
-import CategoryGrid from "@/components/ui/CategoryGrid";
-import Input from "@/components/ui/Input";
-import ShortcutPicker, { ShortcutConfirm } from "@/components/transactions/ShortcutPicker";
 import { cn, formatCurrency } from "@/lib/utils";
+import ShortcutPicker, { ShortcutConfirm } from "@/components/transactions/ShortcutPicker";
+import TransactionFormBody from "@/components/transactions/TransactionFormBody";
 import { toISODateString } from "@/lib/dates";
 import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import type { Account, Category } from "@prisma/client";
@@ -268,10 +265,8 @@ export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAdd
     setView("shortcuts");
   };
 
-  const setYesterday = () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    setDate(toISODateString(yesterday));
+  const handleManualSubmit = () => {
+    handleSave();
   };
 
   if (!isOpen) return null;
@@ -444,59 +439,35 @@ export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAdd
                       </div>
                     </div>
                   ) : (
-                    <>
-                      {tab === "transfer" ? (
-                        <>
-                          <div>
-                            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Dari Akun</p>
-                            <AccountSelector accounts={accounts} selectedId={fromAccountId} onSelect={setFromAccountId} />
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Ke Akun</p>
-                            <AccountSelector accounts={accounts} selectedId={toAccountId} onSelect={setToAccountId} />
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div>
-                            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Akun</p>
-                            <AccountSelector accounts={accounts} selectedId={accountId} onSelect={setAccountId} />
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Kategori</p>
-                            <CategoryGrid categories={categories} selectedId={categoryId} onSelect={setCategoryId} />
-                          </div>
-                        </>
-                      )}
-
-                      <Numpad value={amount} onChange={setAmount} />
-
-                      <Input
-                        label="Deskripsi"
-                        placeholder="Opsional"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                      />
-
-                      <div>
-                        <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Tanggal</p>
-                        <div className="flex gap-2">
-                          <input
-                            type="date"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                            className="flex-1 px-3.5 py-3 rounded-xl border border-border bg-white text-sm"
-                          />
-                          <Button variant="secondary" size="md" onClick={setYesterday} type="button">Kemarin</Button>
-                        </div>
-                      </div>
-
-                      {error && <p className="text-sm text-status-danger text-center">{error}</p>}
-
-                      <Button fullWidth size="lg" onClick={handleSave} disabled={loading}>
-                        {loading ? "Menyimpan..." : tab === "transfer" ? "Lanjut" : "Simpan"}
-                      </Button>
-                    </>
+                    <TransactionFormBody
+                      tab={tab}
+                      onTabChange={(t) => {
+                        setTab(t);
+                        setCategoryId("");
+                        setError("");
+                        setShowTransferConfirm(false);
+                      }}
+                      date={date}
+                      onDateChange={setDate}
+                      accountId={accountId}
+                      onAccountChange={setAccountId}
+                      fromAccountId={fromAccountId}
+                      toAccountId={toAccountId}
+                      onFromAccountChange={setFromAccountId}
+                      onToAccountChange={setToAccountId}
+                      categoryId={categoryId}
+                      onCategoryChange={setCategoryId}
+                      description={description}
+                      onDescriptionChange={setDescription}
+                      amount={amount}
+                      onAmountChange={setAmount}
+                      accounts={accounts}
+                      categories={categories}
+                      error={error}
+                      loading={loading}
+                      submitLabel={tab === "transfer" ? "Lanjut Transfer" : "Simpan Transaksi"}
+                      onSubmit={handleManualSubmit}
+                    />
                   )}
                 </>
               )}
