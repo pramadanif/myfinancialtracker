@@ -16,12 +16,19 @@ export function formatCurrencyLedger(amount: number): string {
   return `Rp ${formatted}`;
 }
 
+function formatShortUnit(value: number, decimals: number): string {
+  return value.toFixed(decimals).replace(".", ",");
+}
+
 export function formatCurrencyShort(amount: number): string {
-  if (amount >= 1000000) {
-    return `Rp${(amount / 1000000).toFixed(1)}jt`;
+  const sign = amount < 0 ? "-" : "";
+  const abs = Math.abs(amount);
+
+  if (abs >= 1_000_000) {
+    return `${sign}Rp${formatShortUnit(abs / 1_000_000, 3)}jt`;
   }
-  if (amount >= 1000) {
-    return `Rp${(amount / 1000).toFixed(0)}rb`;
+  if (abs >= 1_000) {
+    return `${sign}Rp${formatShortUnit(abs / 1_000, 2)}rb`;
   }
   return formatCurrency(amount);
 }

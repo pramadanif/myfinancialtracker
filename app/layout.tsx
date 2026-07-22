@@ -6,6 +6,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import AppShell from "@/components/layout/AppShell";
 import { QuickAddProvider } from "@/components/layout/QuickAddProvider";
 import { DataRefreshProvider } from "@/components/layout/DataRefreshProvider";
+import { CheckinProvider } from "@/components/layout/CheckinProvider";
 import PwaProvider from "@/components/pwa/PwaProvider";
 import SplashLinks from "@/components/pwa/SplashLinks";
 
@@ -50,11 +51,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.variable} font-sans bg-background text-text-primary antialiased`}>
         <Suspense fallback={null}>
           <DataRefreshProvider>
-            <QuickAddProvider>
-              <AppShell>{children}</AppShell>
-              <BottomNav />
-              <PwaProvider />
-            </QuickAddProvider>
+            <CheckinProvider>
+              <QuickAddProvider>
+                <AppShell>{children}</AppShell>
+                <BottomNav />
+                <PwaProvider />
+              </QuickAddProvider>
+            </CheckinProvider>
           </DataRefreshProvider>
         </Suspense>
       </body>

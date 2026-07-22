@@ -25,6 +25,7 @@ import { LedgerSkeleton } from "@/components/ui/LoadingState";
 import { formatCurrencyLedger, cn } from "@/lib/utils";
 import { toISODateString } from "@/lib/dates";
 import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
+import { CheckinModeToggle } from "@/components/checkin/CheckinModeToggle";
 import type { TransactionWithRelations, QuickShortcutWithRelations } from "@/types";
 import type { Account, Category } from "@prisma/client";
 
@@ -143,13 +144,16 @@ function TransactionsContent() {
             <SlidersHorizontal size={18} strokeWidth={2} />
           </button>
           <h1 className="text-base font-bold text-text-primary">Transaksi</h1>
-          <button
-            onClick={() => setShowFilters((v) => !v)}
-            className={cn("icon-btn", search && "text-primary bg-primary-50")}
-            aria-label="Cari"
-          >
-            <Search size={18} strokeWidth={2} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <CheckinModeToggle compact />
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              className={cn("icon-btn", search && "text-primary bg-primary-50")}
+              aria-label="Cari"
+            >
+              <Search size={18} strokeWidth={2} />
+            </button>
+          </div>
         </div>
 
         {/* Month picker */}

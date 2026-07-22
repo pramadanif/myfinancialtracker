@@ -1,13 +1,16 @@
 import { prisma } from "./prisma";
 import { sendPushNotification } from "./push";
-import { getMonthRange, toISODateString } from "./dates";
+import { getMonthRange, getWeekRange, toISODateString } from "./dates";
 import { CategoryType } from "@/types/enums";
+import { getWeeklyBudgetAlerts } from "./transactions";
 
 interface BudgetAlert {
+  id: string;
   categoryName: string;
   spent: number;
   budget: number;
   percent: number;
+  period: "weekly" | "monthly";
 }
 
 async function getSubscriptions() {
@@ -88,10 +91,26 @@ export async function checkBudgetAlerts(now = new Date()) {
   const prefs = await getPreferences();
   if (!prefs.budgetAlert) return { skipped: true, reason: "disabled" };
 
-  const { start, end } = getMonthRange(now);
   const lastAlerts: Record<string, string> = JSON.parse(prefs.lastBudgetAlerts || "{}");
   const todayKey = toISODateString(now);
+  const alerts: BudgetAlert[] = [];
 
+  const weeklyAlerts = await getWeeklyBudgetAlerts(90);
+  for (const item of weeklyAlerts) {
+    const key = `w:${item.id}`;
+    if (lastAlerts[key] !== todayKey) {
+      alerts.push({
+        id: item.id,
+        categoryName: item.name,
+        spent: item.spent,
+        budget: item.budget,
+        percent: item.percentage,
+        period: "weekly",
+      });
+    }
+  }
+
+  const { start, end } = getMonthRange(now);
   const categories = await prisma.category.findMany({
     where: {
       type: { notIn: [CategoryType.INCOME, CategoryType.TRANSFER] },
@@ -99,10 +118,11 @@ export async function checkBudgetAlerts(now = new Date()) {
     },
   });
 
-  const alerts: BudgetAlert[] = [];
-
   for (const cat of categories) {
     if (!cat.monthlyBudget) continue;
+    const key = `m:${cat.id}`;
+    if (lastAlerts[key] === todayKey) continue;
+
     const spent = await prisma.transaction.aggregate({
       where: {
         categoryId: cat.id,
@@ -113,24 +133,32 @@ export async function checkBudgetAlerts(now = new Date()) {
     });
     const total = spent._sum.amount || 0;
     const percent = (total / cat.monthlyBudget) * 100;
-    if (percent >= 90 && lastAlerts[cat.id] !== todayKey) {
-      alerts.push({ categoryName: cat.name, spent: total, budget: cat.monthlyBudget, percent });
+    if (percent >= 90) {
+      alerts.push({
+        id: cat.id,
+        categoryName: cat.name,
+        spent: total,
+        budget: cat.monthlyBudget,
+        percent,
+        period: "monthly",
+      });
     }
   }
 
   if (alerts.length === 0) return { skipped: true, reason: "no alerts" };
 
   const top = alerts.sort((a, b) => b.percent - a.percent)[0];
+  const periodLabel = top.period === "weekly" ? "mingguan" : "bulanan";
   const result = await broadcast({
     title: `Budget ${top.categoryName} ${Math.round(top.percent)}%`,
-    body: `Pengeluaran sudah Rp${Math.round(top.spent).toLocaleString("id-ID")} dari Rp${Math.round(top.budget).toLocaleString("id-ID")}.`,
+    body: `Pengeluaran ${periodLabel} sudah Rp${Math.round(top.spent).toLocaleString("id-ID")} dari Rp${Math.round(top.budget).toLocaleString("id-ID")}.`,
     url: "/budget",
-    tag: `budget-${top.categoryName}`,
+    tag: `budget-${top.period}-${top.id}`,
   });
 
   for (const alert of alerts) {
-    const cat = categories.find((c) => c.name === alert.categoryName);
-    if (cat) lastAlerts[cat.id] = todayKey;
+    const key = `${alert.period === "weekly" ? "w" : "m"}:${alert.id}`;
+    lastAlerts[key] = todayKey;
   }
 
   await prisma.notificationPreference.update({
@@ -152,18 +180,19 @@ export async function checkWeeklySummary(now = new Date()) {
     return { skipped: true, reason: "already sent" };
   }
 
-  const weekAgo = new Date(now);
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  const prevWeekStart = new Date(weekAgo);
-  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+  const { start, end } = getWeekRange(now);
+  const prevStart = new Date(start);
+  prevStart.setDate(prevStart.getDate() - 7);
+  const prevEnd = new Date(start);
+  prevEnd.setMilliseconds(-1);
 
   const [thisWeek, lastWeek] = await Promise.all([
     prisma.transaction.aggregate({
-      where: { type: "DEBIT", date: { gte: weekAgo, lte: now } },
+      where: { type: "DEBIT", date: { gte: start, lte: end } },
       _sum: { amount: true },
     }),
     prisma.transaction.aggregate({
-      where: { type: "DEBIT", date: { gte: prevWeekStart, lt: weekAgo } },
+      where: { type: "DEBIT", date: { gte: prevStart, lte: prevEnd } },
       _sum: { amount: true },
     }),
   ]);
@@ -180,7 +209,7 @@ export async function checkWeeklySummary(now = new Date()) {
 
   const result = await broadcast({
     title: "Ringkasan Mingguan",
-    body: `Pengeluaran 7 hari: Rp${Math.round(thisTotal).toLocaleString("id-ID")} (${diffLabel}).`,
+    body: `Pengeluaran minggu ini: Rp${Math.round(thisTotal).toLocaleString("id-ID")} (${diffLabel}).`,
     url: "/reports",
     tag: "weekly-summary",
   });

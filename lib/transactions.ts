@@ -1,7 +1,9 @@
 import { prisma } from "./prisma";
 import { getWeekRange, getMonthRange, getDayRange, toISODateString } from "./dates";
 import { CategoryType, TransactionType, BudgetPeriod } from "@/types/enums";
-import type { AddTransactionInput, TransferInput } from "@/types";
+import type { AddTransactionInput, TransferInput, WeeklyBudgetAlert } from "@/types";
+
+export type { WeeklyBudgetAlert };
 
 export function isExpenseType(type: string): boolean {
   return type === TransactionType.DEBIT || type === TransactionType.TRANSFER_OUT;
@@ -21,6 +23,9 @@ export async function createTransaction(input: AddTransactionInput) {
   if (amount <= 0) throw new Error("Nominal harus lebih dari 0");
   if (!categoryId) throw new Error("Kategori wajib diisi");
 
+  const settings = await getAppSettings();
+  const isCheckin = input.isCheckin ?? (settings.checkinModeActive && type === TransactionType.DEBIT);
+
   const transaction = await prisma.$transaction(async (tx) => {
     const created = await tx.transaction.create({
       data: {
@@ -30,6 +35,7 @@ export async function createTransaction(input: AddTransactionInput) {
         type: type as TransactionType,
         description: description || "",
         date: new Date(date),
+        isCheckin,
       },
       include: { account: true, category: true },
     });
@@ -310,6 +316,57 @@ export async function getTransactions(filters: {
   return { transactions, total, page, totalPages: Math.ceil(total / limit) };
 }
 
+export async function getAppSettings() {
+  return prisma.appSettings.upsert({
+    where: { id: "default" },
+    update: {},
+    create: { id: "default" },
+  });
+}
+
+export async function updateWeeklyGeneralBudget(amount: number | null) {
+  return prisma.appSettings.upsert({
+    where: { id: "default" },
+    update: { weeklyGeneralBudget: amount },
+    create: { id: "default", weeklyGeneralBudget: amount },
+  });
+}
+
+export async function setCheckinMode(active: boolean) {
+  return prisma.appSettings.upsert({
+    where: { id: "default" },
+    update: {
+      checkinModeActive: active,
+      checkinStartedAt: active ? new Date() : null,
+    },
+    create: {
+      id: "default",
+      checkinModeActive: active,
+      checkinStartedAt: active ? new Date() : null,
+    },
+  });
+}
+
+export function serializeAppSettings(settings: Awaited<ReturnType<typeof getAppSettings>>) {
+  return {
+    weeklyGeneralBudget: settings.weeklyGeneralBudget,
+    checkinModeActive: settings.checkinModeActive,
+    checkinStartedAt: settings.checkinStartedAt?.toISOString() ?? null,
+  };
+}
+
+async function getWeeklyGeneralSpent() {
+  const { start, end } = getWeekRange();
+  const spent = await prisma.transaction.aggregate({
+    where: {
+      type: TransactionType.DEBIT,
+      date: { gte: start, lte: end },
+    },
+    _sum: { amount: true },
+  });
+  return spent._sum.amount || 0;
+}
+
 export async function getDashboardData() {
   const accounts = await getAccounts();
   const totalBalance = accounts.reduce((sum, a) => sum + a.currentBalance, 0);
@@ -317,22 +374,23 @@ export async function getDashboardData() {
   const { start: weekStart, end: weekEnd } = getWeekRange();
   const { start: monthStart, end: monthEnd } = getMonthRange();
 
+  const settings = await getAppSettings();
   const dailyCategories = await prisma.category.findMany({
     where: { type: CategoryType.DAILY_RECURRING },
   });
 
-  const weeklyTarget = dailyCategories.reduce((sum, c) => sum + (c.weeklyBudget || 0), 0);
-
-  const weeklyExpenses = await prisma.transaction.aggregate({
-    where: {
-      type: TransactionType.DEBIT,
-      date: { gte: weekStart, lte: weekEnd },
-      category: { type: CategoryType.DAILY_RECURRING },
-    },
-    _sum: { amount: true },
-  });
-
-  const weeklySpent = weeklyExpenses._sum.amount || 0;
+  const categoryWeeklyTarget = dailyCategories.reduce((sum, c) => sum + (c.weeklyBudget || 0), 0);
+  const weeklyTarget = settings.weeklyGeneralBudget ?? categoryWeeklyTarget;
+  const weeklySpent = settings.weeklyGeneralBudget != null
+    ? await getWeeklyGeneralSpent()
+    : (await prisma.transaction.aggregate({
+        where: {
+          type: TransactionType.DEBIT,
+          date: { gte: weekStart, lte: weekEnd },
+          category: { type: CategoryType.DAILY_RECURRING },
+        },
+        _sum: { amount: true },
+      }))._sum.amount || 0;
   const weeklyPercentage = weeklyTarget > 0 ? (weeklySpent / weeklyTarget) * 100 : 0;
 
   const foodCategory = await prisma.category.findFirst({
@@ -546,16 +604,23 @@ export async function getCalendarData(year: number, month: number, filters?: {
   return { days, avg };
 }
 
-export async function getDayTransactions(date: string) {
+export async function getDayTransactions(
+  date: string,
+  filters?: { accountId?: string; categoryId?: string }
+) {
   const dayStart = new Date(date);
   dayStart.setHours(0, 0, 0, 0);
   const dayEnd = new Date(date);
   dayEnd.setHours(23, 59, 59, 999);
 
+  const where: Record<string, unknown> = {
+    date: { gte: dayStart, lte: dayEnd },
+  };
+  if (filters?.accountId) where.accountId = filters.accountId;
+  if (filters?.categoryId) where.categoryId = filters.categoryId;
+
   const transactions = await prisma.transaction.findMany({
-    where: {
-      date: { gte: dayStart, lte: dayEnd },
-    },
+    where,
     include: { account: true, category: true },
     orderBy: [{ createdAt: "desc" }],
   });
@@ -567,7 +632,67 @@ export async function getDayTransactions(date: string) {
   return { transactions, total };
 }
 
+export async function getWeeklyBudgetAlerts(threshold = 90): Promise<WeeklyBudgetAlert[]> {
+  const settings = await getAppSettings();
+  const { start: weekStart, end: weekEnd } = getWeekRange();
+  const alerts: WeeklyBudgetAlert[] = [];
+
+  if (settings.weeklyGeneralBudget && settings.weeklyGeneralBudget > 0) {
+    const spent = await getWeeklyGeneralSpent();
+    const pct = (spent / settings.weeklyGeneralBudget) * 100;
+    if (pct >= threshold) {
+      alerts.push({
+        id: "general-weekly",
+        name: "Budget Umum Mingguan",
+        iconName: "wallet",
+        spent,
+        budget: settings.weeklyGeneralBudget,
+        percentage: Math.round(pct),
+        kind: "general",
+      });
+    }
+  }
+
+  const categories = await prisma.category.findMany({
+    where: {
+      type: { notIn: [CategoryType.INCOME, CategoryType.TRANSFER] },
+      weeklyBudget: { not: null, gt: 0 },
+    },
+  });
+
+  for (const cat of categories) {
+    const spent = await prisma.transaction.aggregate({
+      where: {
+        type: TransactionType.DEBIT,
+        categoryId: cat.id,
+        date: { gte: weekStart, lte: weekEnd },
+      },
+      _sum: { amount: true },
+    });
+    const total = spent._sum.amount || 0;
+    const budget = cat.weeklyBudget || 0;
+    const pct = budget > 0 ? (total / budget) * 100 : 0;
+    if (pct >= threshold) {
+      alerts.push({
+        id: cat.id,
+        name: cat.name,
+        iconName: cat.iconName,
+        spent: total,
+        budget,
+        percentage: Math.round(pct),
+        kind: "category",
+      });
+    }
+  }
+
+  return alerts.sort((a, b) => b.percentage - a.percentage);
+}
+
 export async function getBudgetData() {
+  const settings = await getAppSettings();
+  const generalWeeklySpent = await getWeeklyGeneralSpent();
+  const generalWeeklyBudget = settings.weeklyGeneralBudget || 0;
+
   const categories = await prisma.category.findMany({
     where: {
       type: { in: [CategoryType.DAILY_RECURRING, CategoryType.MONTHLY_FIXED, CategoryType.LIFESTYLE] },
@@ -624,7 +749,14 @@ export async function getBudgetData() {
     })
   );
 
-  return result;
+  return {
+    categories: result,
+    generalWeekly: {
+      budget: generalWeeklyBudget,
+      spent: generalWeeklySpent,
+      percentage: generalWeeklyBudget > 0 ? (generalWeeklySpent / generalWeeklyBudget) * 100 : 0,
+    },
+  };
 }
 
 export async function updateCategoryBudget(
@@ -724,6 +856,23 @@ export async function getReportData(filters: {
   const totalExpense = expenses.reduce((sum, t) => sum + t.amount, 0);
   const totalIncome = incomes.reduce((sum, t) => sum + t.amount, 0);
 
+  const checkinExpenses = expenses.filter((t) => t.isCheckin);
+  const checkinBreakdown = new Map<string, { name: string; iconName: string; amount: number }>();
+  for (const exp of checkinExpenses) {
+    if (!exp.category) continue;
+    const key = exp.category.name;
+    const existing = checkinBreakdown.get(key);
+    if (existing) existing.amount += exp.amount;
+    else {
+      checkinBreakdown.set(key, {
+        name: exp.category.name,
+        iconName: exp.category.iconName,
+        amount: exp.amount,
+      });
+    }
+  }
+  const settings = await getAppSettings();
+
   // Monthly income vs outcome
   const monthlyComparison = [];
   for (let i = 5; i >= 0; i--) {
@@ -759,6 +908,20 @@ export async function getReportData(filters: {
     monthlyComparison,
     transactions,
     period,
+    checkin: {
+      totalExpense: checkinExpenses.reduce((sum, t) => sum + t.amount, 0),
+      transactionCount: checkinExpenses.length,
+      categoryBreakdown: Array.from(checkinBreakdown.values()).sort((a, b) => b.amount - a.amount),
+      transactions: [...checkinExpenses]
+        .sort((a, b) => b.date.getTime() - a.date.getTime())
+        .map((t) => ({
+          ...t,
+          account: t.account,
+          category: t.category,
+        })),
+      sessionStartedAt: settings.checkinStartedAt?.toISOString() ?? null,
+      modeActive: settings.checkinModeActive,
+    },
   };
 }
 

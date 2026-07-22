@@ -7,6 +7,28 @@ export type CategoryWithUsage = Category & {
   budget?: number;
   percentage?: number;
   usageCount?: number;
+  period?: "daily" | "weekly" | "monthly";
+};
+
+export type WeeklyBudgetAlert = {
+  id: string;
+  name: string;
+  iconName: string;
+  spent: number;
+  budget: number;
+  percentage: number;
+  kind: "general" | "category";
+};
+
+export type GeneralWeeklyBudget = {
+  budget: number;
+  spent: number;
+  percentage: number;
+};
+
+export type BudgetData = {
+  categories: CategoryWithUsage[];
+  generalWeekly: GeneralWeeklyBudget;
 };
 
 export type TransactionWithRelations = Transaction & {
@@ -76,6 +98,21 @@ export type AddTransactionInput = {
   type: "DEBIT" | "CREDIT";
   description?: string;
   date: string;
+  isCheckin?: boolean;
+};
+
+export type AppSettingsData = {
+  weeklyGeneralBudget: number | null;
+  checkinModeActive: boolean;
+  checkinStartedAt: string | null;
+};
+
+export type CheckinReportData = {
+  totalExpense: number;
+  transactionCount: number;
+  categoryBreakdown: { name: string; iconName: string; amount: number }[];
+  transactions: TransactionWithRelations[];
+  sessionStartedAt: string | null;
 };
 
 export type TransferInput = {

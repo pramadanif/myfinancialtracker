@@ -78,6 +78,12 @@ async function main() {
   }
 
   console.log("Seed completed: 3 accounts, 14 categories, 5 shortcuts");
+
+  await prisma.appSettings.upsert({
+    where: { id: "default" },
+    update: {},
+    create: { id: "default", weeklyGeneralBudget: 2_000_000 },
+  });
 }
 
 main()

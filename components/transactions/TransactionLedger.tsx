@@ -165,6 +165,11 @@ export default function TransactionLedger({
                       <span className="text-sm font-semibold text-text-primary truncate">
                         {categoryName}
                       </span>
+                      {tx.isCheckin && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 shrink-0">
+                          Check-in
+                        </span>
+                      )}
                       {note && (
                         <span className="text-2xs font-medium px-1.5 py-0.5 rounded-md bg-background-secondary text-text-secondary truncate max-w-[100px] flex-shrink-0">
                           {note}

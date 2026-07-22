@@ -11,6 +11,7 @@ import TransactionModalShell from "@/components/transactions/TransactionModalShe
 import { toISODateString } from "@/lib/dates";
 import { formatCurrency } from "@/lib/utils";
 import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
+import { useCheckinMode } from "@/components/layout/CheckinProvider";
 import type { Account, Category } from "@prisma/client";
 import type { QuickShortcutWithRelations } from "@/types";
 
@@ -26,6 +27,7 @@ interface QuickAddModalProps {
 export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAddModalProps) {
   const router = useRouter();
   const { version, notifyDataChange } = useDataRefresh();
+  const { checkinModeActive } = useCheckinMode();
   const [view, setView] = useState<ViewMode>("shortcuts");
   const [tab, setTab] = useState<TabType>("expense");
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -265,9 +267,9 @@ export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAdd
   };
 
   const subtitles: Record<ViewMode, string | undefined> = {
-    shortcuts: "Pilih shortcut atau input manual",
+    shortcuts: checkinModeActive ? "Mode check-in · pengeluaran tercatat" : "Pilih shortcut atau input manual",
     confirm: selectedShortcut?.label,
-    manual: "Catat transaksi baru",
+    manual: checkinModeActive ? "Mode check-in aktif" : "Catat transaksi baru",
     transfer: "Pindah saldo antar akun",
   };
 

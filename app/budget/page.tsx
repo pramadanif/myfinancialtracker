@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, CalendarRange, Calendar, Plus, Trash2, Pencil, Check, X } from "lucide-react";
+import { CalendarDays, CalendarRange, Calendar, Plus, Trash2, Pencil, Check, X, Wallet } from "lucide-react";
 import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import { formatCurrency, formatCurrencyShort, cn, getBudgetStatusColor } from "@/lib/utils";
 import Button from "@/components/ui/Button";
@@ -11,7 +11,7 @@ import ProgressBar from "@/components/ui/ProgressBar";
 import DynamicIcon from "@/components/ui/DynamicIcon";
 import { CATEGORY_ICON_DEFAULTS } from "@/lib/icons";
 import { BudgetPeriod } from "@/types/enums";
-import type { CategoryWithUsage } from "@/types";
+import type { CategoryWithUsage, GeneralWeeklyBudget } from "@/types";
 
 const ICON_OPTIONS = Object.values(CATEGORY_ICON_DEFAULTS);
 
@@ -35,9 +35,12 @@ export default function BudgetPage() {
   const router = useRouter();
   const { version, notifyDataChange } = useDataRefresh();
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
+  const [generalWeekly, setGeneralWeekly] = useState<GeneralWeeklyBudget>({ budget: 0, spent: 0, percentage: 0 });
   const [activeTab, setActiveTab] = useState<BudgetTab>(BudgetPeriod.WEEKLY);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingGeneral, setEditingGeneral] = useState(false);
   const [editValue, setEditValue] = useState("");
+  const [generalEditValue, setGeneralEditValue] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -51,7 +54,12 @@ export default function BudgetPage() {
   });
 
   const fetchBudget = () => {
-    fetch("/api/budget", { cache: "no-store" }).then((r) => r.json()).then(setCategories);
+    fetch("/api/budget", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        setCategories(data.categories);
+        setGeneralWeekly(data.generalWeekly);
+      });
   };
 
   useEffect(() => { fetchBudget(); }, [version]);
@@ -61,9 +69,30 @@ export default function BudgetPage() {
     (cat.period === "daily" ? BudgetPeriod.DAILY : cat.period === "weekly" ? BudgetPeriod.WEEKLY : BudgetPeriod.MONTHLY);
 
   const tabCategories = categories.filter((cat) => getBudgetPeriod(cat) === activeTab);
-  const totalSpent = tabCategories.reduce((s, c) => s + (c.spent || 0), 0);
-  const totalBudget = tabCategories.reduce((s, c) => s + (c.budget || 0), 0);
+  const totalSpent = activeTab === BudgetPeriod.WEEKLY && generalWeekly.budget > 0
+    ? generalWeekly.spent
+    : tabCategories.reduce((s, c) => s + (c.spent || 0), 0);
+  const totalBudget = activeTab === BudgetPeriod.WEEKLY && generalWeekly.budget > 0
+    ? generalWeekly.budget
+    : tabCategories.reduce((s, c) => s + (c.budget || 0), 0);
   const totalPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
+
+  const handleSaveGeneralWeekly = async () => {
+    const value = parseInt(generalEditValue, 10);
+    if (isNaN(value) || value < 0) return;
+
+    setSaving(true);
+    await fetch("/api/budget", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ weeklyGeneralBudget: value }),
+    });
+    setEditingGeneral(false);
+    setSaving(false);
+    fetchBudget();
+    notifyDataChange();
+    router.refresh();
+  };
 
   const handleSaveBudget = async (cat: BudgetCategory) => {
     const value = parseInt(editValue, 10);
@@ -210,6 +239,7 @@ export default function BudgetPage() {
               </p>
               <p className="text-xs opacity-75 mt-0.5">
                 dari {formatCurrencyShort(totalBudget)} · {PERIOD_LABEL[activeTab === BudgetPeriod.DAILY ? "daily" : activeTab === BudgetPeriod.WEEKLY ? "weekly" : "monthly"]}
+                {activeTab === BudgetPeriod.WEEKLY && generalWeekly.budget > 0 ? " · umum" : ""}
               </p>
             </div>
             <div className={cn(
@@ -228,6 +258,104 @@ export default function BudgetPage() {
             </div>
           )}
         </div>
+
+        {/* Budget umum mingguan */}
+        {activeTab === BudgetPeriod.WEEKLY && (
+          <div className="surface-card overflow-hidden">
+            <div className="p-3.5">
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-xl bg-primary-50 flex items-center justify-center shrink-0">
+                  <Wallet size={20} className="text-primary" strokeWidth={2} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-bold text-text-primary">Budget Umum Mingguan</p>
+                      <p className="text-2xs text-text-tertiary mt-0.5">Total pengeluaran minggu ini (semua kategori)</p>
+                    </div>
+                    {generalWeekly.budget > 0 && !editingGeneral && (
+                      <span className={cn(
+                        "shrink-0 text-2xs font-bold px-2 py-0.5 rounded-full tabular-nums",
+                        getBudgetStatusColor(Math.round(generalWeekly.percentage)) === "status-danger" && "bg-status-danger-light text-status-danger",
+                        getBudgetStatusColor(Math.round(generalWeekly.percentage)) === "status-warning" && "bg-status-warning-light text-status-warning",
+                        getBudgetStatusColor(Math.round(generalWeekly.percentage)) === "status-safe" && "bg-status-safe-light text-status-safe",
+                      )}>
+                        {Math.round(generalWeekly.percentage)}%
+                      </span>
+                    )}
+                  </div>
+
+                  {editingGeneral ? (
+                    <div className="mt-2.5 flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={generalEditValue}
+                        onChange={(e) => setGeneralEditValue(e.target.value)}
+                        className="flex-1 px-3 py-2 rounded-xl border border-border bg-white text-sm font-semibold tabular-nums"
+                        autoFocus
+                        placeholder="Contoh: 2000000"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveGeneralWeekly}
+                        disabled={saving}
+                        className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center active:scale-95"
+                      >
+                        <Check size={16} strokeWidth={2.5} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingGeneral(false)}
+                        className="w-9 h-9 rounded-xl bg-background-secondary text-text-secondary flex items-center justify-center"
+                      >
+                        <X size={16} strokeWidth={2} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                      <p className="text-xs text-text-secondary tabular-nums">
+                        <span className="font-semibold text-text-primary">{formatCurrencyShort(generalWeekly.spent)}</span>
+                        {" / "}
+                        {generalWeekly.budget > 0 ? formatCurrency(generalWeekly.budget) : "Belum diatur"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {!editingGeneral && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingGeneral(true);
+                      setGeneralEditValue(generalWeekly.budget > 0 ? String(generalWeekly.budget) : "");
+                    }}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-text-tertiary hover:bg-primary-50 hover:text-primary transition-colors shrink-0"
+                    aria-label="Edit budget umum mingguan"
+                  >
+                    <Pencil size={15} strokeWidth={2} />
+                  </button>
+                )}
+              </div>
+
+              {!editingGeneral && generalWeekly.budget > 0 && (
+                <div className="mt-3">
+                  <ProgressBar value={generalWeekly.spent} max={generalWeekly.budget} showValues={false} />
+                </div>
+              )}
+
+              {!editingGeneral && generalWeekly.budget === 0 && (
+                <Button
+                  fullWidth
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => { setEditingGeneral(true); setGeneralEditValue("2000000"); }}
+                >
+                  Atur Budget Umum
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Add form */}
         {showAddForm ? (
@@ -291,6 +419,11 @@ export default function BudgetPage() {
         )}
 
         {/* Category list */}
+        {activeTab === BudgetPeriod.WEEKLY && tabCategories.length > 0 && (
+          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide px-0.5">
+            Per Kategori
+          </p>
+        )}
         {tabCategories.length > 0 ? (
           <div className="space-y-2.5">
             {tabCategories.map((cat) => {

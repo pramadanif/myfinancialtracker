@@ -41,6 +41,7 @@ model Transaction {
   description      String          @default("")
   date             DateTime
   linkedTransferId String?
+  isCheckin        Boolean         @default(false)
   createdAt        DateTime        @default(now())
   account          Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
   category         Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -51,6 +52,7 @@ model Transaction {
   @@index([categoryId])
   @@index([date])
   @@index([type])
+  @@index([isCheckin])
 }
 
 model QuickShortcut {
@@ -78,6 +80,13 @@ model BudgetTarget {
   category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@index([categoryId])
+}
+
+model AppSettings {
+  id                  String    @id @default("default")
+  weeklyGeneralBudget Float?
+  checkinModeActive   Boolean   @default(false)
+  checkinStartedAt    DateTime?
 }
 
 model PushSubscription {

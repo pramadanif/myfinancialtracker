@@ -12,10 +12,10 @@ export async function GET(request: NextRequest) {
   const date = searchParams.get("date");
 
   if (date) {
-    const dayData = await getDayTransactions(date);
-    return NextResponse.json(dayData);
+    const dayData = await getDayTransactions(date, { categoryId, accountId });
+    return NextResponse.json(dayData, { headers: { "Cache-Control": "no-store" } });
   }
 
   const data = await getCalendarData(year, month, { categoryId, accountId });
-  return NextResponse.json(data);
+  return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
 }

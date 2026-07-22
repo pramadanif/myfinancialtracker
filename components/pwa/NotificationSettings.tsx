@@ -169,7 +169,7 @@ export default function NotificationSettings() {
               />
               <ToggleRow
                 label="Alert budget 90%"
-                sublabel="Saat kategori hampir melewati budget bulanan"
+                sublabel="Mingguan & bulanan saat hampir melewati batas"
                 checked={prefs.budgetAlert}
                 onChange={(v) => updatePref("budgetAlert", v)}
               />
