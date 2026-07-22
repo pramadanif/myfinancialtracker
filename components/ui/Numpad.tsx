@@ -6,9 +6,11 @@ import { formatCurrency, parseCurrencyInput } from "@/lib/utils";
 interface NumpadProps {
   value: number;
   onChange: (value: number) => void;
+  hideDisplay?: boolean;
+  compact?: boolean;
 }
 
-export default function Numpad({ value, onChange }: NumpadProps) {
+export default function Numpad({ value, onChange, hideDisplay = false, compact = false }: NumpadProps) {
   const handlePress = (key: string) => {
     if (key === "back") {
       const str = value.toString().slice(0, -1);
@@ -28,22 +30,25 @@ export default function Numpad({ value, onChange }: NumpadProps) {
 
   return (
     <div className="w-full">
-      <div className="text-center py-4">
-        <span className="text-3xl font-bold text-text-primary">
-          {value > 0 ? formatCurrency(value) : "Rp0"}
-        </span>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
+      {!hideDisplay && (
+        <div className="text-center py-4">
+          <span className="text-3xl font-bold text-text-primary">
+            {value > 0 ? formatCurrency(value) : "Rp0"}
+          </span>
+        </div>
+      )}
+      <div className={cn("grid grid-cols-3", compact ? "gap-1.5" : "gap-2")}>
         {keys.map((key) => (
           <button
             key={key}
             type="button"
             onClick={() => handlePress(key)}
             className={cn(
-              "h-14 rounded-xl text-xl font-semibold transition-colors active:scale-95",
+              "rounded-xl font-semibold transition-all active:scale-95",
+              compact ? "h-11 text-base" : "h-14 text-xl",
               key === "back"
                 ? "bg-background-secondary text-text-secondary"
-                : "bg-white border border-border text-text-primary hover:bg-primary-light"
+                : "bg-white border border-border-light text-text-primary active:bg-primary-50"
             )}
           >
             {key === "back" ? "⌫" : key}

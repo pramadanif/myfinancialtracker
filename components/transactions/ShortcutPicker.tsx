@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Zap } from "lucide-react";
+import { Zap, ChevronLeft } from "lucide-react";
 import { formatCurrency, formatCurrencyShort } from "@/lib/utils";
 import DynamicIcon from "@/components/ui/DynamicIcon";
 import type { QuickShortcutWithRelations } from "@/types";
@@ -157,10 +157,12 @@ export function ShortcutConfirm({
 
   return (
     <div className="space-y-4">
-      <button type="button" onClick={onBack} className="text-sm text-primary font-medium">← Kembali</button>
+      <button type="button" onClick={onBack} className="flex items-center gap-1 text-sm text-primary font-medium">
+        <ChevronLeft size={16} /> Shortcut
+      </button>
 
-      <div className="text-center py-2">
-        <div className="w-14 h-14 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-3">
+      <div className="rounded-2xl bg-gradient-to-br from-primary-50 via-white to-white border border-primary/15 p-5 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-white shadow-sm flex items-center justify-center mx-auto mb-3">
           <DynamicIcon name={shortcut.iconName || shortcut.category.iconName} size="lg" className="text-primary" />
         </div>
         <p className="text-lg font-bold text-text-primary">{shortcut.label}</p>
@@ -174,32 +176,26 @@ export function ShortcutConfirm({
         onClick={() => setEditingAmount((v) => !v)}
         className="w-full py-4 rounded-2xl bg-background-secondary border border-border-light text-center active:bg-background-tertiary transition-colors"
       >
-        <p className="text-2xs text-text-tertiary uppercase tracking-wide font-semibold mb-1">
-          {editingAmount ? "Ketuk selesai setelah ubah" : "Ketuk untuk ubah nominal"}
+        <p className="text-[10px] text-text-tertiary uppercase tracking-widest font-bold mb-1">
+          {editingAmount ? "Selesai ubah nominal" : "Ketuk ubah nominal"}
         </p>
-        <p className="text-3xl font-bold text-text-primary tabular-nums">
+        <p className="text-3xl font-bold text-status-danger tabular-nums">
           {amount > 0 ? formatCurrency(amount) : "Rp0"}
         </p>
       </button>
 
       {editingAmount && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-1.5">
           {["1", "2", "3", "4", "5", "6", "7", "8", "9", "00", "0", "back"].map((key) => (
             <button
               key={key}
               type="button"
               onClick={() => {
-                if (key === "back") {
-                  onAmountChange(parseInt(String(amount).slice(0, -1), 10) || 0);
-                } else if (key === "00") {
-                  const next = amount * 100;
-                  if (next <= 999999999) onAmountChange(next);
-                } else {
-                  const next = parseInt(`${amount}${key}`, 10);
-                  if (next <= 999999999) onAmountChange(next);
-                }
+                if (key === "back") onAmountChange(parseInt(String(amount).slice(0, -1), 10) || 0);
+                else if (key === "00") { const n = amount * 100; if (n <= 999999999) onAmountChange(n); }
+                else { const n = parseInt(`${amount}${key}`, 10); if (n <= 999999999) onAmountChange(n); }
               }}
-              className="h-12 rounded-xl bg-white border border-border-light text-lg font-semibold active:bg-primary-50 transition-colors"
+              className="h-11 rounded-xl bg-white border border-border-light text-base font-semibold active:bg-primary-50 transition-colors"
             >
               {key === "back" ? "⌫" : key}
             </button>
@@ -213,14 +209,13 @@ export function ShortcutConfirm({
         type="button"
         onClick={onSave}
         disabled={loading || amount <= 0}
-        className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-base shadow-button
-                   hover:bg-primary-dark active:scale-[0.98] transition-all disabled:opacity-50"
+        className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-base shadow-button active:scale-[0.98] transition-all disabled:opacity-50"
       >
         {loading ? "Menyimpan..." : `Simpan ${amount > 0 ? formatCurrencyShort(amount) : ""}`}
       </button>
 
-      <button type="button" onClick={onEditFull} className="w-full py-3 text-sm text-text-secondary font-medium">
-        Ubah detail lengkap
+      <button type="button" onClick={onEditFull} className="w-full py-2 text-sm text-text-secondary font-medium">
+        Ubah detail lengkap →
       </button>
     </div>
   );

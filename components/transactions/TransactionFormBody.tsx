@@ -1,9 +1,9 @@
 "use client";
 
-import { Calendar } from "lucide-react";
-import Button from "@/components/ui/Button";
+import { CalendarDays, ArrowDownLeft, ArrowUpRight, ArrowLeftRight } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Numpad from "@/components/ui/Numpad";
+import AmountShortcutBar from "@/components/transactions/AmountShortcutBar";
 import AccountSelector from "@/components/ui/AccountSelector";
 import CategoryGrid from "@/components/ui/CategoryGrid";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -11,6 +11,30 @@ import { toISODateString } from "@/lib/dates";
 import type { Account, Category } from "@prisma/client";
 
 type TabType = "expense" | "income" | "transfer";
+
+const TAB_META: Record<TabType, { label: string; icon: typeof ArrowDownLeft; active: string; amount: string; hero: string }> = {
+  expense: {
+    label: "Keluar",
+    icon: ArrowDownLeft,
+    active: "bg-status-danger text-white shadow-sm",
+    amount: "text-status-danger",
+    hero: "from-status-danger/10 via-white to-white border-status-danger/20",
+  },
+  income: {
+    label: "Masuk",
+    icon: ArrowUpRight,
+    active: "bg-status-safe text-white shadow-sm",
+    amount: "text-status-safe",
+    hero: "from-status-safe/10 via-white to-white border-status-safe/20",
+  },
+  transfer: {
+    label: "Transfer",
+    icon: ArrowLeftRight,
+    active: "bg-primary text-white shadow-sm",
+    amount: "text-primary",
+    hero: "from-primary-50 via-white to-white border-primary/20",
+  },
+};
 
 interface TransactionFormBodyProps {
   tab: TabType;
@@ -31,12 +55,16 @@ interface TransactionFormBodyProps {
   onAmountChange: (value: number) => void;
   accounts: Account[];
   categories: Category[];
-  error?: string;
-  loading?: boolean;
-  submitLabel: string;
-  onSubmit: () => void;
   showTabs?: boolean;
   hideTransfer?: boolean;
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-2">
+      {children}
+    </p>
+  );
 }
 
 export default function TransactionFormBody({
@@ -58,127 +86,135 @@ export default function TransactionFormBody({
   onAmountChange,
   accounts,
   categories,
-  error,
-  loading,
-  submitLabel,
-  onSubmit,
   showTabs = true,
   hideTransfer = false,
 }: TransactionFormBodyProps) {
-  const setToday = () => onDateChange(toISODateString(new Date()));
-  const setYesterday = () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    onDateChange(toISODateString(d));
-  };
-
   const today = toISODateString(new Date());
   const yesterday = toISODateString((() => { const d = new Date(); d.setDate(d.getDate() - 1); return d; })());
+  const meta = TAB_META[tab];
+  const tabs = hideTransfer ? (["expense", "income"] as TabType[]) : (["expense", "income", "transfer"] as TabType[]);
 
   return (
-    <div className="space-y-4">
-      {/* Tanggal — paling atas */}
+    <div className="space-y-5">
+      {/* Tanggal */}
       <div>
-        <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Tanggal</p>
-        <div className="flex gap-2 mb-2">
-          <button
-            type="button"
-            onClick={setToday}
-            className={cn(
-              "flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors",
-              date === today ? "bg-primary text-white border-primary" : "bg-white border-border-light text-text-secondary"
-            )}
-          >
-            Hari ini
-          </button>
-          <button
-            type="button"
-            onClick={setYesterday}
-            className={cn(
-              "flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors",
-              date === yesterday ? "bg-primary text-white border-primary" : "bg-white border-border-light text-text-secondary"
-            )}
-          >
-            Kemarin
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          <Calendar size={16} className="text-text-tertiary shrink-0" />
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => onDateChange(e.target.value)}
-            className="flex-1 px-3 py-2.5 rounded-xl border border-border bg-white text-sm"
-          />
-        </div>
-      </div>
-
-      {showTabs && (
-        <div className="flex rounded-2xl bg-background-secondary p-1 gap-0.5">
-          {(hideTransfer ? (["expense", "income"] as TabType[]) : (["expense", "income", "transfer"] as TabType[])).map((t) => (
+        <SectionLabel>Tanggal</SectionLabel>
+        <div className="flex gap-2">
+          {[
+            { key: today, label: "Hari ini" },
+            { key: yesterday, label: "Kemarin" },
+          ].map((pill) => (
             <button
-              key={t}
+              key={pill.key}
               type="button"
-              onClick={() => onTabChange(t)}
+              onClick={() => onDateChange(pill.key)}
               className={cn(
-                "flex-1 py-2.5 rounded-xl text-xs font-semibold transition-colors",
-                tab === t ? "bg-primary text-white shadow-button" : "text-text-secondary"
+                "flex-1 py-2 rounded-xl text-xs font-semibold border transition-all",
+                date === pill.key
+                  ? "bg-primary text-white border-primary shadow-sm"
+                  : "bg-white border-border-light text-text-secondary"
               )}
             >
-              {t === "expense" ? "Keluar" : t === "income" ? "Masuk" : "Transfer"}
+              {pill.label}
             </button>
           ))}
+          <label className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border-light bg-white text-text-secondary cursor-pointer">
+            <CalendarDays size={14} />
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => onDateChange(e.target.value)}
+              className="text-xs font-medium bg-transparent border-0 p-0 w-[5.5rem] cursor-pointer"
+            />
+          </label>
         </div>
-      )}
-
-      {/* Nominal hero + submit dekat atas */}
-      <div className="rounded-2xl bg-background-secondary border border-border-light p-4">
-        <p className="text-2xs text-text-tertiary uppercase tracking-wide font-semibold text-center mb-1">Nominal</p>
-        <p className={cn(
-          "text-3xl font-bold text-center tabular-nums tracking-tight",
-          tab === "income" ? "text-status-safe" : tab === "transfer" ? "text-primary" : "text-status-danger"
-        )}>
-          {amount > 0 ? formatCurrency(amount) : "Rp0"}
-        </p>
-        <div className="mt-3">
-          <Numpad value={amount} onChange={onAmountChange} />
-        </div>
-        <Button fullWidth size="lg" className="mt-4" onClick={onSubmit} disabled={loading || amount <= 0}>
-          {loading ? "Menyimpan..." : submitLabel}
-        </Button>
-        {error && <p className="text-sm text-status-danger text-center font-medium mt-3">{error}</p>}
       </div>
 
-      {tab === "transfer" ? (
-        <>
-          <div>
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Dari Akun</p>
-            <AccountSelector accounts={accounts} selectedId={fromAccountId} onSelect={onFromAccountChange} />
+      {/* Tipe */}
+      {showTabs && (
+        <div>
+          <SectionLabel>Tipe</SectionLabel>
+          <div className="flex gap-2">
+            {tabs.map((t) => {
+              const m = TAB_META[t];
+              const Icon = m.icon;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => onTabChange(t)}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border transition-all",
+                    tab === t ? m.active : "bg-white border-border-light text-text-secondary"
+                  )}
+                >
+                  <Icon size={14} strokeWidth={2.25} />
+                  {m.label}
+                </button>
+              );
+            })}
           </div>
-          <div>
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Ke Akun</p>
-            <AccountSelector accounts={accounts} selectedId={toAccountId} onSelect={onToAccountChange} />
-          </div>
-        </>
-      ) : (
-        <>
-          <div>
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Akun</p>
-            <AccountSelector accounts={accounts} selectedId={accountId} onSelect={onAccountChange} />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Kategori</p>
-            <CategoryGrid categories={categories} selectedId={categoryId} onSelect={onCategoryChange} />
-          </div>
-        </>
+        </div>
       )}
 
-      <Input
-        label="Deskripsi"
-        placeholder="Opsional — catatan singkat"
-        value={description}
-        onChange={(e) => onDescriptionChange(e.target.value)}
-      />
+      {/* Nominal */}
+      <div className={cn("rounded-2xl border bg-gradient-to-b p-4", meta.hero)}>
+        <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest text-center mb-1">
+          Nominal
+        </p>
+        <p className={cn("text-[2rem] font-bold text-center tabular-nums tracking-tight leading-none", meta.amount)}>
+          {amount > 0 ? formatCurrency(amount) : "Rp0"}
+        </p>
+        {tab !== "transfer" && (
+          <div className="mt-2">
+            <AmountShortcutBar amount={amount} onSelect={onAmountChange} />
+          </div>
+        )}
+        <div className="mt-3 -mx-1">
+          <Numpad value={amount} onChange={onAmountChange} hideDisplay compact />
+        </div>
+      </div>
+
+      {/* Detail */}
+      <div className="space-y-4">
+        <SectionLabel>Detail</SectionLabel>
+
+        {tab === "transfer" ? (
+          <div className="space-y-3">
+            <div className="surface-card p-3">
+              <p className="text-2xs font-semibold text-text-tertiary mb-2">Dari</p>
+              <AccountSelector accounts={accounts} selectedId={fromAccountId} onSelect={onFromAccountChange} />
+            </div>
+            <div className="flex justify-center">
+              <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center">
+                <ArrowLeftRight size={14} className="text-primary" />
+              </div>
+            </div>
+            <div className="surface-card p-3">
+              <p className="text-2xs font-semibold text-text-tertiary mb-2">Ke</p>
+              <AccountSelector accounts={accounts} selectedId={toAccountId} onSelect={onToAccountChange} />
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="surface-card p-3">
+              <p className="text-2xs font-semibold text-text-tertiary mb-2">Akun</p>
+              <AccountSelector accounts={accounts} selectedId={accountId} onSelect={onAccountChange} />
+            </div>
+            <div className="surface-card p-3">
+              <p className="text-2xs font-semibold text-text-tertiary mb-2">Kategori</p>
+              <CategoryGrid categories={categories} selectedId={categoryId} onSelect={onCategoryChange} />
+            </div>
+          </>
+        )}
+
+        <Input
+          label="Deskripsi"
+          placeholder="Catatan opsional..."
+          value={description}
+          onChange={(e) => onDescriptionChange(e.target.value)}
+        />
+      </div>
     </div>
   );
 }
