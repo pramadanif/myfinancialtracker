@@ -18,7 +18,9 @@ import { formatCurrencyShort, cn } from "@/lib/utils";
 import { toISODateString } from "@/lib/dates";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import { useRouter } from "next/navigation";
 import TransactionLedger from "@/components/transactions/TransactionLedger";
+import TransactionEditModal from "@/components/transactions/TransactionEditModal";
 import { useQuickAdd } from "@/components/layout/QuickAddProvider";
 import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import type { Account, Category } from "@prisma/client";
@@ -30,6 +32,7 @@ type DayData = {
 };
 
 export default function CalendarPage() {
+  const router = useRouter();
   const { openQuickAdd } = useQuickAdd();
   const { version } = useDataRefresh();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -41,6 +44,7 @@ export default function CalendarPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [filterAccount, setFilterAccount] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -78,6 +82,23 @@ export default function CalendarPage() {
 
   const handleDayClick = (date: string) => {
     setSelectedDate(date);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Hapus transaksi ini?")) return;
+    const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+    if (res.ok && selectedDate) {
+      fetchDayDetail(selectedDate);
+      fetchCalendar();
+      router.refresh();
+    }
+  };
+
+  const handleEditSaved = () => {
+    if (selectedDate) fetchDayDetail(selectedDate);
+    fetchCalendar();
+    fetch("/api/accounts").then((r) => r.json()).then(setAccounts);
+    router.refresh();
   };
 
   const monthStart = startOfMonth(currentDate);
@@ -208,7 +229,11 @@ export default function CalendarPage() {
               <button onClick={() => setSelectedDate(null)} className="text-2xl text-text-secondary">&times;</button>
             </div>
             <div className="p-4 space-y-3">
-              <TransactionLedger transactions={dayTransactions} />
+              <TransactionLedger
+                transactions={dayTransactions}
+                onEdit={setEditingTx}
+                onDelete={handleDelete}
+              />
               <Button fullWidth onClick={() => { openQuickAdd(selectedDate); setSelectedDate(null); }}>
                 + Tambah Transaksi
               </Button>
@@ -216,6 +241,14 @@ export default function CalendarPage() {
           </div>
         </div>
       )}
+
+      <TransactionEditModal
+        transaction={editingTx}
+        accounts={accounts}
+        categories={categories}
+        onClose={() => setEditingTx(null)}
+        onSaved={handleEditSaved}
+      />
     </div>
   );
 }

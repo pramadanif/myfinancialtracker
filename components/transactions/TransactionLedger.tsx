@@ -10,6 +10,7 @@ import type { TransactionWithRelations } from "@/types";
 
 interface TransactionLedgerProps {
   transactions: TransactionWithRelations[];
+  onEdit?: (tx: TransactionWithRelations) => void;
   onDelete?: (id: string) => void;
   emptyMessage?: string;
 }
@@ -80,6 +81,7 @@ function getAmountColor(type: string): string {
 
 export default function TransactionLedger({
   transactions,
+  onEdit,
   onDelete,
   emptyMessage = "Belum ada transaksi bulan ini",
 }: TransactionLedgerProps) {
@@ -142,7 +144,19 @@ export default function TransactionLedger({
               return (
                 <div
                   key={tx.id}
-                  className="flex items-center gap-3 px-4 py-3.5 active:bg-background-secondary/50 transition-colors group"
+                  role={onEdit ? "button" : undefined}
+                  tabIndex={onEdit ? 0 : undefined}
+                  onClick={() => onEdit?.(tx)}
+                  onKeyDown={(e) => {
+                    if (onEdit && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
+                      onEdit(tx);
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3.5 transition-colors group",
+                    onEdit && "active:bg-background-secondary/50 cursor-pointer"
+                  )}
                 >
                   <CategoryIconBox iconName={getIconName(tx)} size="sm" />
 
@@ -164,13 +178,27 @@ export default function TransactionLedger({
                     <span className={cn("text-sm font-bold tabular-nums", getAmountColor(tx.type))}>
                       {formatCurrencyLedger(tx.amount)}
                     </span>
-                    {onDelete && !isTransfer && (
-                      <button
-                        onClick={() => onDelete(tx.id)}
-                        className="text-2xs text-status-danger font-medium opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity"
-                      >
-                        Hapus
-                      </button>
+                    {(onEdit || onDelete) && !isTransfer && (
+                      <div className="flex items-center gap-2">
+                        {onEdit && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onEdit(tx); }}
+                            className="text-2xs text-primary font-medium"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {onDelete && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onDelete(tx.id); }}
+                            className="text-2xs text-status-danger font-medium"
+                          >
+                            Hapus
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

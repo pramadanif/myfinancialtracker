@@ -20,6 +20,7 @@ import DynamicIcon from "@/components/ui/DynamicIcon";
 import TransactionLedger, { computePeriodSummary } from "@/components/transactions/TransactionLedger";
 import TransactionSummaryBar from "@/components/transactions/TransactionSummaryBar";
 import ShortcutManager from "@/components/transactions/ShortcutManager";
+import TransactionEditModal from "@/components/transactions/TransactionEditModal";
 import { LedgerSkeleton } from "@/components/ui/LoadingState";
 import { formatCurrencyLedger, cn } from "@/lib/utils";
 import { toISODateString } from "@/lib/dates";
@@ -53,6 +54,7 @@ function TransactionsContent() {
   const [filterAccount, setFilterAccount] = useState(searchParams.get("accountId") || "");
   const [filterCategory, setFilterCategory] = useState("");
   const [search, setSearch] = useState("");
+  const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(null);
 
   const monthStart = toISODateString(startOfMonth(currentMonth));
   const monthEnd = toISODateString(endOfMonth(currentMonth));
@@ -95,6 +97,12 @@ function TransactionsContent() {
     if (!confirm("Hapus transaksi ini?")) return;
     const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
     if (res.ok) { fetchTransactions(); router.refresh(); }
+  };
+
+  const handleEditSaved = () => {
+    fetchTransactions();
+    fetch("/api/accounts").then((r) => r.json()).then(setAccounts);
+    router.refresh();
   };
 
   const refreshShortcuts = () => {
@@ -237,7 +245,11 @@ function TransactionsContent() {
         {loading ? (
           <LedgerSkeleton />
         ) : activeView === "daily" ? (
-          <TransactionLedger transactions={transactions} onDelete={handleDelete} />
+          <TransactionLedger
+            transactions={transactions}
+            onEdit={setEditingTx}
+            onDelete={handleDelete}
+          />
         ) : activeView === "monthly" ? (
           <div className="py-3 space-y-2">
             {Object.entries(categoryTotals)
@@ -302,6 +314,14 @@ function TransactionsContent() {
           />
         ) : null}
       </div>
+
+      <TransactionEditModal
+        transaction={editingTx}
+        accounts={accounts}
+        categories={categories}
+        onClose={() => setEditingTx(null)}
+        onSaved={handleEditSaved}
+      />
     </div>
   );
 }

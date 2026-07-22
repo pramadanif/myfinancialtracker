@@ -12,7 +12,8 @@ const prisma = new PrismaClient();
 
 /** Override kategori berdasarkan kata kunci di Note/Subcategory (prioritas tertinggi) */
 const NOTE_KEYWORD_MAP = [
-  { keywords: ["bensin", "bendin", "pertamax", "shell", "spbu", "oli"], category: "Bensin" },
+  { keywords: ["kos", "kost", "kontrakan", "sewa kamar", "sewa rumah", "sewa"], category: "Kos" },
+  { keywords: ["bensin", "bendin", "pertamax", "shell", "spbu", "oli motor", "isi bensin"], category: "Bensin" },
   { keywords: ["listrik", "pln", "token listrik"], category: "Tagihan" },
   { keywords: ["pulsa", "kuota", "data"], category: "Top Up E-wallet" },
   { keywords: ["laundry"], category: "Lain-lain kecil" },
@@ -25,6 +26,9 @@ const NOTE_KEYWORD_MAP = [
   { keywords: ["wismie", "seafood", "shamrock", "gultik", "fourspace", "warung", "kopi", "makan", "nasi", "bakso"], category: "Makan & Minum" },
 ];
 
+/** Bensin biasanya < Rp200rb; nominal besar di Transport = kemungkinan kos/sewa */
+const TRANSPORT_BENSIN_MAX = 200000;
+
 /** Mapping kategori Excel → kategori app (jika Note tidak match keyword) */
 const CATEGORY_MAP = {
   "🍜 Food": "Makan & Minum",
@@ -32,7 +36,7 @@ const CATEGORY_MAP = {
   "💰 Salary": "Income/Gaji",
   "💵 Petty cash": "Income/Gaji",
   "🧥 Apparel": "Belanja Retail",
-  "🪑 Household": "Tagihan",
+  "🪑 Household": "Kos",
   "📙 Education": "Lain-lain kecil",
   "👬🏻 Social Life": "Hotel/Hiburan/Nonton",
   "🖼 Culture": "Hotel/Hiburan/Nonton",
@@ -68,11 +72,19 @@ function resolveCategoryName(row, isIncome) {
   const note = normalizeText(row.Note);
   const sub = normalizeText(row.Subcategory);
   const combined = `${note} ${sub}`.trim();
+  const amount = Number(row.Amount || row.IDR) || 0;
+  const excelCategory = String(row.Category || "");
 
   for (const rule of NOTE_KEYWORD_MAP) {
     if (rule.keywords.some((kw) => combined.includes(kw) || note === kw)) {
       return rule.category;
     }
+  }
+
+  // Transport tanpa note: nominal besar → Kos, kecil → Bensin
+  if (excelCategory.includes("Transport")) {
+    if (amount >= TRANSPORT_BENSIN_MAX) return "Kos";
+    return "Bensin";
   }
 
   const mapped = CATEGORY_MAP[row.Category];
