@@ -18,15 +18,9 @@ export const TransactionType = {
 export type TransactionType = (typeof TransactionType)[keyof typeof TransactionType];
 
 export const BudgetPeriod = {
+  DAILY: "DAILY",
   WEEKLY: "WEEKLY",
   MONTHLY: "MONTHLY",
 } as const;
 
 export type BudgetPeriod = (typeof BudgetPeriod)[keyof typeof BudgetPeriod];
-
-export const ShortcutFrequency = {
-  DAILY: "DAILY",
-  WEEKLY: "WEEKLY",
-} as const;
-
-export type ShortcutFrequency = (typeof ShortcutFrequency)[keyof typeof ShortcutFrequency];

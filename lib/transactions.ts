@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
-import { CategoryType, TransactionType } from "@/types/enums";
-import { getWeekRange, getMonthRange, toISODateString } from "./dates";
+import { getWeekRange, getMonthRange, getDayRange, toISODateString } from "./dates";
+import { CategoryType, TransactionType, BudgetPeriod } from "@/types/enums";
 import type { AddTransactionInput, TransferInput } from "@/types";
 
 export function isExpenseType(type: string): boolean {
@@ -257,7 +257,7 @@ export async function getIncomeCategories() {
 export async function getQuickShortcuts() {
   return prisma.quickShortcut.findMany({
     include: { account: true, category: true },
-    orderBy: [{ frequency: "asc" }, { usageCount: "desc" }],
+    orderBy: { usageCount: "desc" },
   });
 }
 
@@ -577,13 +577,30 @@ export async function getBudgetData() {
 
   const { start: monthStart, end: monthEnd } = getMonthRange();
   const { start: weekStart, end: weekEnd } = getWeekRange();
+  const { start: dayStart, end: dayEnd } = getDayRange();
 
   const result = await Promise.all(
     categories.map(async (cat) => {
-      const isWeekly = cat.type === CategoryType.DAILY_RECURRING;
-      const budget = isWeekly ? cat.weeklyBudget : cat.monthlyBudget;
-      const rangeStart = isWeekly ? weekStart : monthStart;
-      const rangeEnd = isWeekly ? weekEnd : monthEnd;
+      const period = cat.budgetPeriod || BudgetPeriod.WEEKLY;
+      let budget = 0;
+      let rangeStart = monthStart;
+      let rangeEnd = monthEnd;
+      let periodLabel: "daily" | "weekly" | "monthly" = "monthly";
+
+      if (period === BudgetPeriod.DAILY) {
+        budget = cat.dailyBudget || 0;
+        rangeStart = dayStart;
+        rangeEnd = dayEnd;
+        periodLabel = "daily";
+      } else if (period === BudgetPeriod.WEEKLY) {
+        budget = cat.weeklyBudget || 0;
+        rangeStart = weekStart;
+        rangeEnd = weekEnd;
+        periodLabel = "weekly";
+      } else {
+        budget = cat.monthlyBudget || 0;
+        periodLabel = "monthly";
+      }
 
       const spent = await prisma.transaction.aggregate({
         where: {
@@ -602,7 +619,7 @@ export async function getBudgetData() {
         spent: spentAmount,
         budget: budget || 0,
         percentage,
-        period: isWeekly ? "weekly" as const : "monthly" as const,
+        period: periodLabel,
       };
     })
   );
@@ -612,7 +629,12 @@ export async function getBudgetData() {
 
 export async function updateCategoryBudget(
   id: string,
-  data: { weeklyBudget?: number | null; monthlyBudget?: number | null }
+  data: {
+    dailyBudget?: number | null;
+    weeklyBudget?: number | null;
+    monthlyBudget?: number | null;
+    budgetPeriod?: string;
+  }
 ) {
   return prisma.category.update({
     where: { id },
@@ -625,19 +647,36 @@ export async function createCategory(data: {
   emoji?: string;
   iconName?: string;
   type: CategoryType;
+  budgetPeriod?: string;
+  dailyBudget?: number | null;
   weeklyBudget?: number | null;
   monthlyBudget?: number | null;
 }) {
+  const budgetPeriod =
+    data.budgetPeriod ||
+    (data.type === CategoryType.DAILY_RECURRING ? BudgetPeriod.WEEKLY : BudgetPeriod.MONTHLY);
+
   return prisma.category.create({
     data: {
       name: data.name,
       emoji: "",
       iconName: data.iconName || "circle-dollar-sign",
       type: data.type,
+      budgetPeriod,
+      dailyBudget: data.dailyBudget,
       weeklyBudget: data.weeklyBudget,
       monthlyBudget: data.monthlyBudget,
     },
   });
+}
+
+export async function deleteCategory(id: string) {
+  const category = await prisma.category.findUnique({ where: { id } });
+  if (!category) throw new Error("Kategori tidak ditemukan");
+  if (category.type === CategoryType.INCOME || category.type === CategoryType.TRANSFER) {
+    throw new Error("Kategori sistem tidak bisa dihapus");
+  }
+  return prisma.category.delete({ where: { id } });
 }
 
 export async function getReportData(filters: {
@@ -775,7 +814,6 @@ export async function createShortcut(data: {
   categoryId: string;
   defaultAmount?: number | null;
   iconName?: string;
-  frequency?: string;
 }) {
   return prisma.quickShortcut.create({
     data: {
@@ -783,7 +821,6 @@ export async function createShortcut(data: {
       accountId: data.accountId,
       categoryId: data.categoryId,
       defaultAmount: data.defaultAmount,
-      frequency: data.frequency || "DAILY",
       emoji: "",
       iconName: data.iconName || "zap",
     },
@@ -799,7 +836,6 @@ export async function updateShortcut(
     categoryId: string;
     defaultAmount: number | null;
     iconName: string;
-    frequency: string;
   }>
 ) {
   return prisma.quickShortcut.update({

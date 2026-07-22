@@ -317,7 +317,7 @@ export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAdd
                   {expenseShortcuts.length > 0 ? (
                     <>
                       <p className="text-xs text-text-secondary text-center">
-                        Pilih shortcut harian atau mingguan · ketuk konfirmasi · tahan untuk 1-tap
+                        Ketuk konfirmasi · tahan untuk simpan langsung (shortcut dengan nominal)
                       </p>
                       <ShortcutPicker
                         shortcuts={expenseShortcuts}

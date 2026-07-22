@@ -11,8 +11,8 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { id, weeklyBudget, monthlyBudget } = await request.json();
-    const category = await updateCategoryBudget(id, { weeklyBudget, monthlyBudget });
+    const { id, dailyBudget, weeklyBudget, monthlyBudget, budgetPeriod } = await request.json();
+    const category = await updateCategoryBudget(id, { dailyBudget, weeklyBudget, monthlyBudget, budgetPeriod });
     return NextResponse.json(category);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Gagal mengupdate budget";
@@ -27,6 +27,8 @@ export async function POST(request: NextRequest) {
       name: body.name,
       iconName: body.iconName,
       type: body.type as CategoryType,
+      budgetPeriod: body.budgetPeriod,
+      dailyBudget: body.dailyBudget,
       weeklyBudget: body.weeklyBudget,
       monthlyBudget: body.monthlyBudget,
     });

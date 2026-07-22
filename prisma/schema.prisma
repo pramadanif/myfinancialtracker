@@ -23,6 +23,8 @@ model Category {
   emoji          String
   iconName       String          @default("circle-dollar-sign")
   type           String
+  budgetPeriod   String          @default("WEEKLY")
+  dailyBudget    Float?
   weeklyBudget   Float?
   monthlyBudget  Float?
   transactions   Transaction[]
@@ -57,7 +59,6 @@ model QuickShortcut {
   accountId     String
   categoryId    String
   defaultAmount Float?
-  frequency     String   @default("DAILY")
   emoji         String   @default("")
   iconName      String   @default("zap")
   usageCount    Int      @default(0)
@@ -66,7 +67,6 @@ model QuickShortcut {
   category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@index([usageCount])
-  @@index([frequency])
 }
 
 model BudgetTarget {
