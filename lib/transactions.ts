@@ -257,7 +257,7 @@ export async function getIncomeCategories() {
 export async function getQuickShortcuts() {
   return prisma.quickShortcut.findMany({
     include: { account: true, category: true },
-    orderBy: { usageCount: "desc" },
+    orderBy: [{ frequency: "asc" }, { usageCount: "desc" }],
   });
 }
 
@@ -775,6 +775,7 @@ export async function createShortcut(data: {
   categoryId: string;
   defaultAmount?: number | null;
   iconName?: string;
+  frequency?: string;
 }) {
   return prisma.quickShortcut.create({
     data: {
@@ -782,6 +783,7 @@ export async function createShortcut(data: {
       accountId: data.accountId,
       categoryId: data.categoryId,
       defaultAmount: data.defaultAmount,
+      frequency: data.frequency || "DAILY",
       emoji: "",
       iconName: data.iconName || "zap",
     },
@@ -797,6 +799,7 @@ export async function updateShortcut(
     categoryId: string;
     defaultAmount: number | null;
     iconName: string;
+    frequency: string;
   }>
 ) {
   return prisma.quickShortcut.update({

@@ -19,15 +19,13 @@ import Card from "@/components/ui/Card";
 import DynamicIcon from "@/components/ui/DynamicIcon";
 import TransactionLedger, { computePeriodSummary } from "@/components/transactions/TransactionLedger";
 import TransactionSummaryBar from "@/components/transactions/TransactionSummaryBar";
+import ShortcutManager from "@/components/transactions/ShortcutManager";
 import { LedgerSkeleton } from "@/components/ui/LoadingState";
 import { formatCurrencyLedger, cn } from "@/lib/utils";
 import { toISODateString } from "@/lib/dates";
-import { CATEGORY_ICON_DEFAULTS } from "@/lib/icons";
 import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import type { TransactionWithRelations, QuickShortcutWithRelations } from "@/types";
 import type { Account, Category } from "@prisma/client";
-
-const ICON_OPTIONS = Object.values(CATEGORY_ICON_DEFAULTS);
 
 type ViewTab = "daily" | "calendar" | "monthly" | "summary" | "shortcuts";
 
@@ -55,11 +53,6 @@ function TransactionsContent() {
   const [filterAccount, setFilterAccount] = useState(searchParams.get("accountId") || "");
   const [filterCategory, setFilterCategory] = useState("");
   const [search, setSearch] = useState("");
-
-  const [showShortcutForm, setShowShortcutForm] = useState(false);
-  const [shortcutForm, setShortcutForm] = useState({
-    label: "", iconName: "zap", accountId: "", categoryId: "", defaultAmount: "",
-  });
 
   const monthStart = toISODateString(startOfMonth(currentMonth));
   const monthEnd = toISODateString(endOfMonth(currentMonth));
@@ -104,20 +97,8 @@ function TransactionsContent() {
     if (res.ok) { fetchTransactions(); router.refresh(); }
   };
 
-  const handleSaveShortcut = async () => {
-    const res = await fetch("/api/shortcuts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...shortcutForm,
-        defaultAmount: shortcutForm.defaultAmount ? parseInt(shortcutForm.defaultAmount, 10) : null,
-      }),
-    });
-    if (res.ok) {
-      setShowShortcutForm(false);
-      setShortcutForm({ label: "", iconName: "zap", accountId: "", categoryId: "", defaultAmount: "" });
-      fetch("/api/shortcuts").then((r) => r.json()).then(setShortcuts);
-    }
+  const refreshShortcuts = () => {
+    fetch("/api/shortcuts").then((r) => r.json()).then(setShortcuts);
   };
 
   const categoryTotals = transactions
@@ -313,56 +294,12 @@ function TransactionsContent() {
             </Link>
           </div>
         ) : activeView === "shortcuts" ? (
-          <div className="py-3 space-y-3">
-            <Button fullWidth onClick={() => setShowShortcutForm(true)}>+ Tambah Shortcut</Button>
-            {showShortcutForm && (
-              <Card className="space-y-3">
-                <Input label="Label" value={shortcutForm.label} onChange={(e) => setShortcutForm({ ...shortcutForm, label: e.target.value })} />
-                <div className="flex flex-wrap gap-2">
-                  {ICON_OPTIONS.slice(0, 8).map((icon) => (
-                    <button
-                      key={icon}
-                      type="button"
-                      onClick={() => setShortcutForm({ ...shortcutForm, iconName: icon })}
-                      className={cn(
-                        "w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all",
-                        shortcutForm.iconName === icon ? "border-primary bg-primary-50" : "border-border-light"
-                      )}
-                    >
-                      <DynamicIcon name={icon} size="sm" />
-                    </button>
-                  ))}
-                </div>
-                <select value={shortcutForm.accountId} onChange={(e) => setShortcutForm({ ...shortcutForm, accountId: e.target.value })} className="form-select">
-                  <option value="">Pilih Akun</option>
-                  {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-                <select value={shortcutForm.categoryId} onChange={(e) => setShortcutForm({ ...shortcutForm, categoryId: e.target.value })} className="form-select">
-                  <option value="">Pilih Kategori</option>
-                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <Input label="Nominal Default" type="number" value={shortcutForm.defaultAmount} onChange={(e) => setShortcutForm({ ...shortcutForm, defaultAmount: e.target.value })} />
-                <div className="flex gap-2">
-                  <Button variant="secondary" fullWidth onClick={() => setShowShortcutForm(false)}>Batal</Button>
-                  <Button fullWidth onClick={handleSaveShortcut}>Simpan</Button>
-                </div>
-              </Card>
-            )}
-            {shortcuts.map((s) => (
-              <Card key={s.id} padding="sm" className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
-                    <DynamicIcon name={s.iconName || s.category.iconName} size="md" className="text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">{s.label}</p>
-                    <p className="text-xs text-text-tertiary">{s.account.name} · {s.category.name}</p>
-                  </div>
-                </div>
-                <button onClick={async () => { if (confirm("Hapus?")) { await fetch(`/api/shortcuts/${s.id}`, { method: "DELETE" }); fetch("/api/shortcuts").then((r) => r.json()).then(setShortcuts); } }} className="text-xs text-status-danger font-medium px-2">Hapus</button>
-              </Card>
-            ))}
-          </div>
+          <ShortcutManager
+            shortcuts={shortcuts}
+            accounts={accounts}
+            categories={categories}
+            onRefresh={refreshShortcuts}
+          />
         ) : null}
       </div>
     </div>

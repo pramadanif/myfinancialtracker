@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Zap } from "lucide-react";
+import { CalendarDays, CalendarRange, Zap } from "lucide-react";
 import { formatCurrency, formatCurrencyShort } from "@/lib/utils";
 import DynamicIcon from "@/components/ui/DynamicIcon";
+import { ShortcutFrequency } from "@/types/enums";
 import type { QuickShortcutWithRelations } from "@/types";
 
 interface ShortcutPickerProps {
@@ -15,6 +16,21 @@ interface ShortcutPickerProps {
 
 const LONG_PRESS_MS = 450;
 
+const SECTIONS = [
+  {
+    frequency: ShortcutFrequency.DAILY,
+    label: "Harian",
+    icon: CalendarDays,
+    hint: "Rutin tiap hari",
+  },
+  {
+    frequency: ShortcutFrequency.WEEKLY,
+    label: "Mingguan",
+    icon: CalendarRange,
+    hint: "Rutin tiap minggu",
+  },
+] as const;
+
 export default function ShortcutPicker({
   shortcuts,
   onSelect,
@@ -24,17 +40,40 @@ export default function ShortcutPicker({
   if (shortcuts.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 gap-2.5">
-      {shortcuts.map((s) => (
-        <ShortcutCard
-          key={s.id}
-          shortcut={s}
-          isLoading={loadingId === s.id}
-          disabled={!!loadingId}
-          onSelect={() => onSelect(s)}
-          onInstantSave={onInstantSave && s.defaultAmount ? () => onInstantSave(s) : undefined}
-        />
-      ))}
+    <div className="space-y-5">
+      {SECTIONS.map((section) => {
+        const items = shortcuts.filter(
+          (s) => (s.frequency || ShortcutFrequency.DAILY) === section.frequency
+        );
+        if (items.length === 0) return null;
+
+        const Icon = section.icon;
+        return (
+          <div key={section.frequency}>
+            <div className="flex items-center gap-2 mb-2.5 px-0.5">
+              <div className="w-6 h-6 rounded-lg bg-primary-50 flex items-center justify-center">
+                <Icon size={13} className="text-primary" strokeWidth={2.25} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-text-primary">{section.label}</p>
+                <p className="text-2xs text-text-tertiary">{section.hint}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {items.map((s) => (
+                <ShortcutCard
+                  key={s.id}
+                  shortcut={s}
+                  isLoading={loadingId === s.id}
+                  disabled={!!loadingId}
+                  onSelect={() => onSelect(s)}
+                  onInstantSave={onInstantSave && s.defaultAmount ? () => onInstantSave(s) : undefined}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -99,9 +138,9 @@ function ShortcutCard({
       onMouseUp={clearTimer}
       onMouseLeave={clearTimer}
       disabled={disabled}
-      className="flex flex-col items-start p-3.5 rounded-2xl bg-white border-2 border-border-light
-                 hover:border-primary hover:bg-primary-50 active:scale-[0.97]
-                 transition-all duration-150 text-left min-h-[96px] relative select-none"
+      className="flex flex-col items-start p-3 rounded-2xl bg-white border border-border-light
+                 hover:border-primary/40 hover:bg-primary-50/40 active:scale-[0.97]
+                 transition-all duration-150 text-left min-h-[88px] relative select-none shadow-sm"
     >
       {(isLoading || pressing) && (
         <div className="absolute inset-0 bg-white/90 flex items-center justify-center rounded-2xl z-10">
@@ -112,11 +151,11 @@ function ShortcutCard({
           )}
         </div>
       )}
-      <div className="flex items-center justify-between w-full mb-2">
-        <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
+      <div className="flex items-center justify-between w-full mb-1.5">
+        <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center">
           <DynamicIcon
             name={shortcut.iconName || shortcut.category.iconName}
-            size="md"
+            size="sm"
             className="text-primary"
           />
         </div>
@@ -130,7 +169,7 @@ function ShortcutCard({
       <span className="text-sm font-bold text-text-primary leading-tight line-clamp-2">
         {shortcut.label}
       </span>
-      <span className="text-xs font-semibold text-primary mt-1 tabular-nums">
+      <span className="text-xs font-semibold text-primary mt-0.5 tabular-nums">
         {shortcut.defaultAmount ? formatCurrencyShort(shortcut.defaultAmount) : "Atur nominal →"}
       </span>
       <span className="text-2xs text-text-tertiary mt-0.5">{shortcut.account.name}</span>
@@ -160,6 +199,7 @@ export function ShortcutConfirm({
   error,
 }: ShortcutConfirmProps) {
   const [editingAmount, setEditingAmount] = useState(false);
+  const freqLabel = shortcut.frequency === ShortcutFrequency.WEEKLY ? "Mingguan" : "Harian";
 
   return (
     <div className="space-y-4">
@@ -177,7 +217,7 @@ export function ShortcutConfirm({
         </div>
         <p className="text-lg font-bold text-text-primary">{shortcut.label}</p>
         <p className="text-xs text-text-tertiary mt-1">
-          {shortcut.account.name} · {shortcut.category.name}
+          {shortcut.account.name} · {shortcut.category.name} · {freqLabel}
         </p>
       </div>
 

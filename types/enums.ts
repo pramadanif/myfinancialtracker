@@ -23,3 +23,10 @@ export const BudgetPeriod = {
 } as const;
 
 export type BudgetPeriod = (typeof BudgetPeriod)[keyof typeof BudgetPeriod];
+
+export const ShortcutFrequency = {
+  DAILY: "DAILY",
+  WEEKLY: "WEEKLY",
+} as const;
+
+export type ShortcutFrequency = (typeof ShortcutFrequency)[keyof typeof ShortcutFrequency];

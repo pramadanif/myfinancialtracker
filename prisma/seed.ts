@@ -54,11 +54,11 @@ async function main() {
   }
 
   const shortcutsData = [
-    { label: "Warkop/Kopi", iconName: "coffee", accountId: cash.id, categoryId: categories["Makan & Minum"].id, defaultAmount: 10000 },
-    { label: "Isi Bensin", iconName: "fuel", accountId: bca.id, categoryId: categories["Bensin"].id, defaultAmount: 90000 },
-    { label: "Warung Makan", iconName: "utensils-crossed", accountId: cash.id, categoryId: categories["Makan & Minum"].id, defaultAmount: 20000 },
-    { label: "Top Up ShopeePay", iconName: "smartphone", accountId: bca.id, categoryId: categories["Top Up E-wallet"].id, defaultAmount: 20000 },
-    { label: "Minimarket", iconName: "shopping-bag", accountId: cash.id, categoryId: categories["Minimarket"].id, defaultAmount: null },
+    { label: "Warkop/Kopi", iconName: "coffee", accountId: cash.id, categoryId: categories["Makan & Minum"].id, defaultAmount: 10000, frequency: "DAILY" },
+    { label: "Isi Bensin", iconName: "fuel", accountId: bca.id, categoryId: categories["Bensin"].id, defaultAmount: 90000, frequency: "WEEKLY" },
+    { label: "Warung Makan", iconName: "utensils-crossed", accountId: cash.id, categoryId: categories["Makan & Minum"].id, defaultAmount: 20000, frequency: "DAILY" },
+    { label: "Top Up ShopeePay", iconName: "smartphone", accountId: bca.id, categoryId: categories["Top Up E-wallet"].id, defaultAmount: 20000, frequency: "WEEKLY" },
+    { label: "Minimarket", iconName: "shopping-bag", accountId: cash.id, categoryId: categories["Minimarket"].id, defaultAmount: null, frequency: "DAILY" },
   ];
 
   for (const shortcut of shortcutsData) {
@@ -72,7 +72,7 @@ async function main() {
     } else {
       await prisma.quickShortcut.update({
         where: { id: existing.id },
-        data: { iconName: shortcut.iconName, emoji: "" },
+        data: { iconName: shortcut.iconName, emoji: "", frequency: shortcut.frequency },
       });
     }
   }
