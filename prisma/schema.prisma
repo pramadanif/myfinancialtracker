@@ -77,3 +77,24 @@ model BudgetTarget {
 
   @@index([categoryId])
 }
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
+
+model NotificationPreference {
+  id                String    @id @default("default")
+  dailyReminder     Boolean   @default(true)
+  dailyReminderHour Int       @default(20)
+  budgetAlert       Boolean   @default(true)
+  weeklySummary     Boolean   @default(true)
+  weeklySummaryDay  Int       @default(1)
+  weeklySummaryHour Int       @default(9)
+  lastDailySent     DateTime?
+  lastWeeklySent    DateTime?
+  lastBudgetAlerts  String    @default("{}")
+}

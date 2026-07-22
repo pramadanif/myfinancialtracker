@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import { formatCurrencyShort } from "@/lib/utils";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -15,6 +16,7 @@ const ICON_OPTIONS = Object.values(CATEGORY_ICON_DEFAULTS);
 
 export default function BudgetPage() {
   const router = useRouter();
+  const { version } = useDataRefresh();
   const [categories, setCategories] = useState<(CategoryWithUsage & { period: string })[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -27,7 +29,7 @@ export default function BudgetPage() {
     fetch("/api/budget").then((r) => r.json()).then(setCategories);
   };
 
-  useEffect(() => { fetchBudget(); }, []);
+  useEffect(() => { fetchBudget(); }, [version]);
 
   const handleSaveBudget = async (id: string, period: string) => {
     const value = parseInt(editValue, 10);

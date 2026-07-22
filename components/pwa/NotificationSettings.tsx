@@ -1,0 +1,226 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Bell, BellOff, ChevronDown, ChevronUp } from "lucide-react";
+import { canRequestPushPermission, isStandalone, urlBase64ToUint8Array } from "@/lib/pwa";
+import { cn } from "@/lib/utils";
+
+interface Preferences {
+  dailyReminder: boolean;
+  dailyReminderHour: number;
+  budgetAlert: boolean;
+  weeklySummary: boolean;
+  weeklySummaryHour: number;
+  hasSubscription: boolean;
+}
+
+export default function NotificationSettings() {
+  const [mounted, setMounted] = useState(false);
+  const [standalone, setStandalone] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [prefs, setPrefs] = useState<Preferences | null>(null);
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const loadPrefs = useCallback(async () => {
+    const res = await fetch("/api/push/preferences");
+    if (res.ok) setPrefs(await res.json());
+  }, []);
+
+  useEffect(() => {
+    setStandalone(isStandalone());
+    if ("Notification" in window) {
+      setPermission(Notification.permission);
+    } else {
+      setPermission("unsupported");
+    }
+    loadPrefs();
+    setMounted(true);
+  }, [loadPrefs]);
+
+  const subscribe = async () => {
+    setLoading(true);
+    setMessage("");
+    try {
+      const keyRes = await fetch("/api/push/subscribe");
+      if (!keyRes.ok) throw new Error("Push belum dikonfigurasi di server");
+      const { publicKey } = await keyRes.json();
+
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+      });
+
+      const json = subscription.toJSON();
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(json),
+      });
+
+      setPermission(Notification.permission);
+      await loadPrefs();
+      setMessage("Notifikasi aktif!");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Gagal mengaktifkan notifikasi");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updatePref = async (key: string, value: boolean | number) => {
+    const res = await fetch("/api/push/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [key]: value }),
+    });
+    if (res.ok) setPrefs(await res.json());
+  };
+
+  if (!mounted) {
+    return (
+      <div className="surface-card p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
+            <Bell size={20} className="text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-text-primary">Notifikasi</p>
+            <p className="text-xs text-text-secondary">Memuat...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!standalone) {
+    return (
+      <div className="surface-card p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+            <Bell size={20} className="text-amber-600" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-text-primary">Notifikasi Push</p>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Install app ke Home Screen dulu, lalu buka dari icon tersebut untuk mengaktifkan notifikasi.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="surface-card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between p-4 text-left"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
+            {permission === "granted" ? (
+              <Bell size={20} className="text-primary" />
+            ) : (
+              <BellOff size={20} className="text-text-tertiary" />
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-bold text-text-primary">Notifikasi</p>
+            <p className="text-xs text-text-secondary">
+              {permission === "granted" ? "Aktif" : "Belum diaktifkan"}
+            </p>
+          </div>
+        </div>
+        {expanded ? <ChevronUp size={18} className="text-text-tertiary" /> : <ChevronDown size={18} className="text-text-tertiary" />}
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 space-y-3 border-t border-border-light pt-3">
+          {permission !== "granted" && (
+            <div className="bg-amber-50 rounded-xl p-3 text-xs text-amber-800">
+              Notifikasi hanya bisa diaktifkan saat app dibuka dari Home Screen (bukan tab Safari).
+            </div>
+          )}
+
+          {canRequestPushPermission() && permission !== "granted" && (
+            <button
+              type="button"
+              onClick={subscribe}
+              disabled={loading}
+              className="w-full py-3 rounded-xl bg-primary text-white font-semibold text-sm disabled:opacity-50"
+            >
+              {loading ? "Mengaktifkan..." : "Aktifkan Notifikasi"}
+            </button>
+          )}
+
+          {message && <p className="text-xs text-center text-primary font-medium">{message}</p>}
+
+          {prefs && permission === "granted" && (
+            <div className="space-y-2">
+              <ToggleRow
+                label="Reminder harian"
+                sublabel={`Jam ${prefs.dailyReminderHour}:00 — jika belum input transaksi`}
+                checked={prefs.dailyReminder}
+                onChange={(v) => updatePref("dailyReminder", v)}
+              />
+              <ToggleRow
+                label="Alert budget 90%"
+                sublabel="Saat kategori hampir melewati budget bulanan"
+                checked={prefs.budgetAlert}
+                onChange={(v) => updatePref("budgetAlert", v)}
+              />
+              <ToggleRow
+                label="Ringkasan mingguan"
+                sublabel={`Senin jam ${prefs.weeklySummaryHour}:00`}
+                checked={prefs.weeklySummary}
+                onChange={(v) => updatePref("weeklySummary", v)}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  sublabel,
+  checked,
+  onChange,
+}: {
+  label: string;
+  sublabel: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2">
+      <div>
+        <p className="text-sm font-medium text-text-primary">{label}</p>
+        <p className="text-2xs text-text-tertiary">{sublabel}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          "w-11 h-6 rounded-full transition-colors relative shrink-0",
+          checked ? "bg-primary" : "bg-border"
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform",
+            checked ? "translate-x-5" : "translate-x-0.5"
+          )}
+        />
+      </button>
+    </div>
+  );
+}

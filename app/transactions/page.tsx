@@ -22,6 +22,7 @@ import { LedgerSkeleton } from "@/components/ui/LoadingState";
 import { formatCurrencyLedger, cn } from "@/lib/utils";
 import { toISODateString } from "@/lib/dates";
 import { CATEGORY_ICON_DEFAULTS } from "@/lib/icons";
+import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import type { TransactionWithRelations, QuickShortcutWithRelations } from "@/types";
 import type { Account, Category } from "@prisma/client";
 
@@ -64,6 +65,7 @@ function SummaryBar({ income, expense, total }: { income: number; expense: numbe
 
 function TransactionsContent() {
   const router = useRouter();
+  const { version } = useDataRefresh();
   const searchParams = useSearchParams();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [activeView, setActiveView] = useState<ViewTab>("daily");
@@ -109,7 +111,7 @@ function TransactionsContent() {
     fetch("/api/accounts").then((r) => r.json()).then(setAccounts);
     fetch("/api/categories").then((r) => r.json()).then(setCategories);
     fetch("/api/shortcuts").then((r) => r.json()).then(setShortcuts);
-  }, [fetchTransactions]);
+  }, [fetchTransactions, version]);
 
   const summary = computePeriodSummary(transactions);
   const hasActiveFilters = !!(filterAccount || filterCategory || search);

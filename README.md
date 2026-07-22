@@ -41,10 +41,12 @@ Buka http://localhost:3000 — login dengan password dari `APP_PASSWORD` (defaul
 
 ## Deployment
 
-Lihat [DEPLOYMENT.md](./DEPLOYMENT.md) untuk panduan lengkap:
-- Docker (`docker-compose up`)
-- Manual (PM2 + Nginx + SSL)
-- Backup SQLite otomatis (cron)
+Production: **https://finance.pramadani.site**
+
+Lihat [DEPLOYMENT.md](./DEPLOYMENT.md) untuk panduan end-to-end:
+- DNS → clone → build → PM2 (port 3010) → Nginx → SSL Certbot
+- Cron notifikasi push & backup SQLite
+- Update/redeploy & troubleshooting
 
 ## Struktur Folder
 

@@ -4,7 +4,7 @@ import { getIronSession } from "iron-session";
 import { sessionOptions } from "@/lib/auth";
 import { SessionData } from "@/types/session";
 
-const publicPaths = ["/login", "/api/auth/login"];
+const publicPaths = ["/login", "/api/auth/login", "/api/cron/notifications"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -12,7 +12,13 @@ export async function middleware(request: NextRequest) {
   if (
     publicPaths.some((p) => pathname.startsWith(p)) ||
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon")
+    pathname.startsWith("/favicon") ||
+    pathname === "/sw.js" ||
+    pathname === "/manifest.webmanifest" ||
+    pathname.startsWith("/icons/") ||
+    pathname.startsWith("/splash/") ||
+    pathname === "/apple-touch-icon.png" ||
+    pathname === "/offline"
   ) {
     return NextResponse.next();
   }
@@ -31,5 +37,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icons|splash|sw.js|manifest.webmanifest|apple-touch-icon.png).*)"],
 };

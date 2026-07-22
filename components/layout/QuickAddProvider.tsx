@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import QuickAddModal from "@/components/transactions/QuickAddModal";
 
 interface QuickAddContextValue {
@@ -13,6 +14,13 @@ const QuickAddContext = createContext<QuickAddContextValue | null>(null);
 export function QuickAddProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [defaultDate, setDefaultDate] = useState<string | undefined>();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("quickAdd") === "1") {
+      setIsOpen(true);
+    }
+  }, [searchParams]);
 
   const openQuickAdd = useCallback((date?: string) => {
     setDefaultDate(date);

@@ -10,7 +10,8 @@
   }
 
   body {
-    @apply bg-background-secondary text-text-primary;
+    background-color: theme("colors.background.secondary");
+    color: theme("colors.text.primary");
   }
 
   /* Consistent number rendering for financial data */
@@ -21,41 +22,54 @@
 
 @layer components {
   .page-container {
-    @apply min-h-screen bg-background-secondary;
+    @apply min-h-screen;
+    background-color: theme("colors.background.secondary");
   }
 
   .surface-card {
-    @apply bg-white rounded-2xl border border-border-light shadow-card;
+    @apply bg-white rounded-2xl border shadow-card;
+    border-color: theme("colors.border.light");
   }
 
   .glass-nav {
-    @apply bg-white/90 backdrop-blur-lg border-t border-border-light;
+    @apply bg-white/90 backdrop-blur-lg border-t;
+    border-color: theme("colors.border.light");
   }
 
   .icon-btn {
-    @apply flex items-center justify-center w-9 h-9 rounded-xl
-           text-text-secondary hover:text-primary hover:bg-primary-50
-           active:scale-95 transition-all duration-150;
+    @apply flex items-center justify-center w-9 h-9 rounded-xl active:scale-95 transition-all duration-150;
+    color: theme("colors.text.secondary");
+  }
+
+  .icon-btn:hover {
+    color: theme("colors.primary.DEFAULT");
+    background-color: theme("colors.primary.50");
   }
 
   .segment-tab {
-    @apply flex-shrink-0 px-4 py-2.5 text-xs font-semibold transition-all duration-150
-           relative text-text-secondary;
+    @apply flex-shrink-0 px-4 py-2.5 text-xs font-semibold transition-all duration-150 relative;
+    color: theme("colors.text.secondary");
   }
 
   .segment-tab-active {
-    @apply text-primary;
+    color: theme("colors.primary.DEFAULT");
   }
 
   .form-select {
-    @apply w-full px-3.5 py-2.5 rounded-xl border border-border bg-white
-           text-sm text-text-primary appearance-none
-           focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-           transition-all duration-150;
+    @apply w-full px-3.5 py-2.5 rounded-xl border bg-white text-sm appearance-none transition-all duration-150;
+    color: theme("colors.text.primary");
+    border-color: theme("colors.border.DEFAULT");
+  }
+
+  .form-select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, theme("colors.primary.DEFAULT") 20%, transparent);
+    border-color: theme("colors.primary.DEFAULT");
   }
 
   .skeleton {
-    @apply animate-pulse bg-background-tertiary rounded-xl;
+    @apply animate-pulse rounded-xl;
+    background-color: theme("colors.background.tertiary");
   }
 }
 
@@ -68,6 +82,10 @@
     padding-top: env(safe-area-inset-top);
   }
 
+  .standalone-safe-top {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -78,6 +96,7 @@
   }
 
   .text-balance-header {
-    @apply text-[10px] font-semibold uppercase tracking-widest text-text-tertiary;
+    @apply text-[10px] font-semibold uppercase tracking-widest;
+    color: theme("colors.text.tertiary");
   }
 }

@@ -11,6 +11,7 @@ import Input from "@/components/ui/Input";
 import ShortcutPicker, { ShortcutConfirm } from "@/components/transactions/ShortcutPicker";
 import { cn, formatCurrency } from "@/lib/utils";
 import { toISODateString } from "@/lib/dates";
+import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import type { Account, Category } from "@prisma/client";
 import type { QuickShortcutWithRelations } from "@/types";
 
@@ -25,6 +26,7 @@ interface QuickAddModalProps {
 
 export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAddModalProps) {
   const router = useRouter();
+  const { notifyDataChange } = useDataRefresh();
   const [view, setView] = useState<ViewMode>("shortcuts");
   const [tab, setTab] = useState<TabType>("expense");
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -133,6 +135,7 @@ export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAdd
       setTimeout(() => {
         resetForm();
         onClose();
+        notifyDataChange();
         router.refresh();
       }, 600);
     } catch (err) {
@@ -172,6 +175,7 @@ export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAdd
       setTimeout(() => {
         resetForm();
         onClose();
+        notifyDataChange();
         router.refresh();
       }, 500);
     } catch (err) {
@@ -243,6 +247,7 @@ export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAdd
 
       resetForm();
       onClose();
+      notifyDataChange();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan");

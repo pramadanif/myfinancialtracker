@@ -1,19 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatCurrency, formatCurrencyShort, cn } from "@/lib/utils";
 import { formatDayName } from "@/lib/dates";
+import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import Card from "@/components/ui/Card";
 import ProgressBar from "@/components/ui/ProgressBar";
 import SectionHeader from "@/components/ui/SectionHeader";
 import DashboardChart from "@/components/dashboard/DashboardChart";
 import AccountOverview from "@/components/dashboard/AccountOverview";
+import NotificationSettings from "@/components/pwa/NotificationSettings";
 import DynamicIcon from "@/components/ui/DynamicIcon";
 import type { DashboardData } from "@/types";
 
-export default function DashboardClient({ data }: { data: DashboardData }) {
-  const [visibleTotal, setVisibleTotal] = useState(data.totalBalance);
+export default function DashboardClient({ data: initialData }: { data: DashboardData }) {
+  const { version } = useDataRefresh();
+  const [data, setData] = useState(initialData);
+  const [visibleTotal, setVisibleTotal] = useState(initialData.totalBalance);
+
+  useEffect(() => {
+    setData(initialData);
+    setVisibleTotal(initialData.totalBalance);
+  }, [initialData]);
+
+  useEffect(() => {
+    if (version === 0) return;
+    fetch("/api/dashboard")
+      .then((r) => r.json())
+      .then((next) => {
+        setData(next);
+        setVisibleTotal(next.totalBalance);
+      });
+  }, [version]);
 
   return (
     <div className="page-container">
@@ -123,6 +142,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <Card>
             <DashboardChart data={data.weeklyChart} />
           </Card>
+        </div>
+
+        <div>
+          <SectionHeader title="Pengaturan App" />
+          <NotificationSettings />
         </div>
       </div>
     </div>

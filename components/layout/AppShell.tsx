@@ -9,7 +9,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <main
-      className={`min-h-screen max-w-lg mx-auto relative ${
+      className={`min-h-screen max-w-lg mx-auto relative standalone-safe-top ${
         isLogin ? "bg-white" : isFullBleed ? "bg-background-secondary pb-[76px]" : "bg-background-secondary pb-[76px]"
       }`}
     >

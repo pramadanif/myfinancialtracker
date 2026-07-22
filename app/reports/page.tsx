@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import { formatCurrency, formatCurrencyShort } from "@/lib/utils";
 import { toISODateString } from "@/lib/dates";
 import Card from "@/components/ui/Card";
@@ -19,6 +20,7 @@ type ReportData = {
 };
 
 export default function ReportsPage() {
+  const { version } = useDataRefresh();
   const [data, setData] = useState<ReportData | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [filterAccount, setFilterAccount] = useState("");
@@ -40,7 +42,7 @@ export default function ReportsPage() {
       .then(setData);
 
     fetch("/api/accounts").then((r) => r.json()).then(setAccounts);
-  }, [filterAccount, startDate, endDate]);
+  }, [filterAccount, startDate, endDate, version]);
 
   const handleExport = () => {
     const params = new URLSearchParams({ format: "csv" });
