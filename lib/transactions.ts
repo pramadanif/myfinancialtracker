@@ -24,7 +24,9 @@ export async function createTransaction(input: AddTransactionInput) {
   if (!categoryId) throw new Error("Kategori wajib diisi");
 
   const settings = await getAppSettings();
-  const isCheckin = input.isCheckin ?? (settings.checkinModeActive && type === TransactionType.DEBIT);
+  const isDebit = type === TransactionType.DEBIT;
+  const isCheckin = input.isCheckin ?? (settings.checkinModeActive && isDebit);
+  const isPacaran = input.isPacaran ?? (settings.pacaranModeActive && isDebit);
 
   const transaction = await prisma.$transaction(async (tx) => {
     const created = await tx.transaction.create({
@@ -36,6 +38,7 @@ export async function createTransaction(input: AddTransactionInput) {
         description: description || "",
         date: new Date(date),
         isCheckin,
+        isPacaran,
       },
       include: { account: true, category: true },
     });
@@ -338,11 +341,30 @@ export async function setCheckinMode(active: boolean) {
     update: {
       checkinModeActive: active,
       checkinStartedAt: active ? new Date() : null,
+      ...(active ? { pacaranModeActive: false, pacaranStartedAt: null } : {}),
     },
     create: {
       id: "default",
       checkinModeActive: active,
       checkinStartedAt: active ? new Date() : null,
+      pacaranModeActive: false,
+    },
+  });
+}
+
+export async function setPacaranMode(active: boolean) {
+  return prisma.appSettings.upsert({
+    where: { id: "default" },
+    update: {
+      pacaranModeActive: active,
+      pacaranStartedAt: active ? new Date() : null,
+      ...(active ? { checkinModeActive: false, checkinStartedAt: null } : {}),
+    },
+    create: {
+      id: "default",
+      pacaranModeActive: active,
+      pacaranStartedAt: active ? new Date() : null,
+      checkinModeActive: false,
     },
   });
 }
@@ -352,6 +374,8 @@ export function serializeAppSettings(settings: Awaited<ReturnType<typeof getAppS
     weeklyGeneralBudget: settings.weeklyGeneralBudget,
     checkinModeActive: settings.checkinModeActive,
     checkinStartedAt: settings.checkinStartedAt?.toISOString() ?? null,
+    pacaranModeActive: settings.pacaranModeActive,
+    pacaranStartedAt: settings.pacaranStartedAt?.toISOString() ?? null,
   };
 }
 
@@ -857,7 +881,9 @@ export async function getReportData(filters: {
   const totalIncome = incomes.reduce((sum, t) => sum + t.amount, 0);
 
   const checkinExpenses = expenses.filter((t) => t.isCheckin);
+  const pacaranExpenses = expenses.filter((t) => t.isPacaran);
   const checkinBreakdown = new Map<string, { name: string; iconName: string; amount: number }>();
+  const pacaranBreakdown = new Map<string, { name: string; iconName: string; amount: number }>();
   for (const exp of checkinExpenses) {
     if (!exp.category) continue;
     const key = exp.category.name;
@@ -865,6 +891,19 @@ export async function getReportData(filters: {
     if (existing) existing.amount += exp.amount;
     else {
       checkinBreakdown.set(key, {
+        name: exp.category.name,
+        iconName: exp.category.iconName,
+        amount: exp.amount,
+      });
+    }
+  }
+  for (const exp of pacaranExpenses) {
+    if (!exp.category) continue;
+    const key = exp.category.name;
+    const existing = pacaranBreakdown.get(key);
+    if (existing) existing.amount += exp.amount;
+    else {
+      pacaranBreakdown.set(key, {
         name: exp.category.name,
         iconName: exp.category.iconName,
         amount: exp.amount,
@@ -921,6 +960,20 @@ export async function getReportData(filters: {
         })),
       sessionStartedAt: settings.checkinStartedAt?.toISOString() ?? null,
       modeActive: settings.checkinModeActive,
+    },
+    pacaran: {
+      totalExpense: pacaranExpenses.reduce((sum, t) => sum + t.amount, 0),
+      transactionCount: pacaranExpenses.length,
+      categoryBreakdown: Array.from(pacaranBreakdown.values()).sort((a, b) => b.amount - a.amount),
+      transactions: [...pacaranExpenses]
+        .sort((a, b) => b.date.getTime() - a.date.getTime())
+        .map((t) => ({
+          ...t,
+          account: t.account,
+          category: t.category,
+        })),
+      sessionStartedAt: settings.pacaranStartedAt?.toISOString() ?? null,
+      modeActive: settings.pacaranModeActive,
     },
   };
 }

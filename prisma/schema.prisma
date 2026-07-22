@@ -42,6 +42,7 @@ model Transaction {
   date             DateTime
   linkedTransferId String?
   isCheckin        Boolean         @default(false)
+  isPacaran        Boolean         @default(false)
   createdAt        DateTime        @default(now())
   account          Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
   category         Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -53,6 +54,7 @@ model Transaction {
   @@index([date])
   @@index([type])
   @@index([isCheckin])
+  @@index([isPacaran])
 }
 
 model QuickShortcut {
@@ -87,6 +89,8 @@ model AppSettings {
   weeklyGeneralBudget Float?
   checkinModeActive   Boolean   @default(false)
   checkinStartedAt    DateTime?
+  pacaranModeActive   Boolean   @default(false)
+  pacaranStartedAt    DateTime?
 }
 
 model PushSubscription {

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { CheckinModeBanner } from "@/components/checkin/CheckinModeToggle";
+import { ActivityModeBanners } from "@/components/checkin/CheckinModeToggle";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -16,7 +16,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     >
       {/* Subtle phone-frame shadow on larger screens */}
       <div className="min-h-screen shadow-[0_0_0_1px_rgba(0,0,0,0.04)]">
-        <CheckinModeBanner />
+        <ActivityModeBanners />
         {children}
       </div>
     </main>

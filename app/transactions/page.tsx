@@ -25,7 +25,7 @@ import { LedgerSkeleton } from "@/components/ui/LoadingState";
 import { formatCurrencyLedger, cn } from "@/lib/utils";
 import { toISODateString } from "@/lib/dates";
 import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
-import { CheckinModeToggle } from "@/components/checkin/CheckinModeToggle";
+import { ActivityModeToggles } from "@/components/checkin/CheckinModeToggle";
 import type { TransactionWithRelations, QuickShortcutWithRelations } from "@/types";
 import type { Account, Category } from "@prisma/client";
 
@@ -145,7 +145,7 @@ function TransactionsContent() {
           </button>
           <h1 className="text-base font-bold text-text-primary">Transaksi</h1>
           <div className="flex items-center gap-1.5">
-            <CheckinModeToggle compact />
+            <ActivityModeToggles compact />
             <button
               onClick={() => setShowFilters((v) => !v)}
               className={cn("icon-btn", search && "text-primary bg-primary-50")}

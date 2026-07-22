@@ -165,6 +165,11 @@ export default function TransactionLedger({
                       <span className="text-sm font-semibold text-text-primary truncate">
                         {categoryName}
                       </span>
+                      {tx.isPacaran && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-800 shrink-0">
+                          Pacaran
+                        </span>
+                      )}
                       {tx.isCheckin && (
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 shrink-0">
                           Check-in

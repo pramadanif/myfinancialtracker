@@ -99,21 +99,27 @@ export type AddTransactionInput = {
   description?: string;
   date: string;
   isCheckin?: boolean;
+  isPacaran?: boolean;
 };
 
 export type AppSettingsData = {
   weeklyGeneralBudget: number | null;
   checkinModeActive: boolean;
   checkinStartedAt: string | null;
+  pacaranModeActive: boolean;
+  pacaranStartedAt: string | null;
 };
 
-export type CheckinReportData = {
+export type ModeReportData = {
   totalExpense: number;
   transactionCount: number;
   categoryBreakdown: { name: string; iconName: string; amount: number }[];
   transactions: TransactionWithRelations[];
   sessionStartedAt: string | null;
 };
+
+export type CheckinReportData = ModeReportData;
+export type PacaranReportData = ModeReportData;
 
 export type TransferInput = {
   fromAccountId: string;
