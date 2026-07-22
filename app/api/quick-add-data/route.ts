@@ -7,6 +7,10 @@ import {
   getCategoryUsageCounts,
 } from "@/lib/transactions";
 
+export const dynamic = "force-dynamic";
+
+const noStore = { headers: { "Cache-Control": "no-store" } };
+
 export async function GET() {
   const [accounts, expenseCategories, incomeCategories, shortcuts, usageCounts] =
     await Promise.all([
@@ -28,5 +32,5 @@ export async function GET() {
     expenseCategories: withUsage(expenseCategories),
     incomeCategories: withUsage(incomeCategories),
     shortcuts,
-  });
+  }, noStore);
 }

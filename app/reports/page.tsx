@@ -37,11 +37,11 @@ export default function ReportsPage() {
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
 
-    fetch(`/api/reports?${params}`)
+    fetch(`/api/reports?${params}`, { cache: "no-store" })
       .then((r) => r.json())
       .then(setData);
 
-    fetch("/api/accounts").then((r) => r.json()).then(setAccounts);
+    fetch("/api/accounts", { cache: "no-store" }).then((r) => r.json()).then(setAccounts);
   }, [filterAccount, startDate, endDate, version]);
 
   const handleExport = () => {

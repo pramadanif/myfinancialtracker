@@ -17,6 +17,8 @@
     "cron:scheduler": "node --env-file=.env scripts/notification-scheduler.mjs",
     "import:excel": "node --env-file=.env scripts/import-excel.mjs",
     "test:transactions": "node --env-file=.env scripts/test-transactions.mjs",
+    "test:shortcuts": "node --env-file=.env scripts/test-shortcuts.mjs",
+    "test": "npm run test:transactions && npm run test:shortcuts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

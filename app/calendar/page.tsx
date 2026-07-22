@@ -54,7 +54,7 @@ export default function CalendarPage() {
     if (filterAccount) params.set("accountId", filterAccount);
     if (filterCategory) params.set("categoryId", filterCategory);
 
-    const res = await fetch(`/api/calendar?${params}`);
+    const res = await fetch(`/api/calendar?${params}`, { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       setDays(data.days);
@@ -63,12 +63,12 @@ export default function CalendarPage() {
 
   useEffect(() => {
     fetchCalendar();
-    fetch("/api/accounts").then((r) => r.json()).then(setAccounts);
-    fetch("/api/categories").then((r) => r.json()).then(setCategories);
+    fetch("/api/accounts", { cache: "no-store" }).then((r) => r.json()).then(setAccounts);
+    fetch("/api/categories", { cache: "no-store" }).then((r) => r.json()).then(setCategories);
   }, [fetchCalendar, version]);
 
   const fetchDayDetail = useCallback(async (date: string) => {
-    const res = await fetch(`/api/calendar?date=${date}`);
+    const res = await fetch(`/api/calendar?date=${date}`, { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       setDayTransactions(data.transactions);

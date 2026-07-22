@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Zap } from "lucide-react";
+import { Plus, Trash2, Zap, Pencil } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import DynamicIcon from "@/components/ui/DynamicIcon";
@@ -35,6 +35,7 @@ export default function ShortcutManager({
   onRefresh,
 }: ShortcutManagerProps) {
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -44,14 +45,29 @@ export default function ShortcutManager({
     (c) => c.type !== "INCOME" && c.type !== "TRANSFER"
   );
 
-  const openForm = () => {
+  const openCreateForm = () => {
+    setEditingId(null);
     setForm({ ...emptyForm, accountId: accounts[0]?.id || "" });
+    setError("");
+    setShowForm(true);
+  };
+
+  const openEditForm = (shortcut: QuickShortcutWithRelations) => {
+    setEditingId(shortcut.id);
+    setForm({
+      label: shortcut.label,
+      iconName: shortcut.iconName || shortcut.category.iconName || "zap",
+      accountId: shortcut.accountId,
+      categoryId: shortcut.categoryId,
+      defaultAmount: shortcut.defaultAmount ? String(shortcut.defaultAmount) : "",
+    });
     setError("");
     setShowForm(true);
   };
 
   const closeForm = () => {
     setShowForm(false);
+    setEditingId(null);
     setForm(emptyForm);
     setError("");
   };
@@ -63,18 +79,23 @@ export default function ShortcutManager({
 
     setSaving(true);
     setError("");
+    const payload = {
+      label: form.label.trim(),
+      iconName: form.iconName,
+      accountId: form.accountId,
+      categoryId: form.categoryId,
+      defaultAmount: form.defaultAmount ? parseInt(form.defaultAmount, 10) : null,
+    };
+
     try {
-      const res = await fetch("/api/shortcuts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          label: form.label.trim(),
-          iconName: form.iconName,
-          accountId: form.accountId,
-          categoryId: form.categoryId,
-          defaultAmount: form.defaultAmount ? parseInt(form.defaultAmount, 10) : null,
-        }),
-      });
+      const res = await fetch(
+        editingId ? `/api/shortcuts/${editingId}` : "/api/shortcuts",
+        {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Gagal menyimpan");
@@ -94,6 +115,7 @@ export default function ShortcutManager({
     try {
       const res = await fetch(`/api/shortcuts/${shortcut.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Gagal menghapus");
+      if (editingId === shortcut.id) closeForm();
       onRefresh();
     } catch {
       alert("Gagal menghapus shortcut");
@@ -107,7 +129,7 @@ export default function ShortcutManager({
       {!showForm ? (
         <button
           type="button"
-          onClick={openForm}
+          onClick={openCreateForm}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border-2 border-dashed border-primary/30
                      text-primary font-semibold text-sm bg-primary-50/50 active:bg-primary-50 transition-colors"
         >
@@ -117,7 +139,9 @@ export default function ShortcutManager({
       ) : (
         <div className="surface-card p-4 space-y-4 animate-fade-in">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-text-primary">Shortcut Baru</h3>
+            <h3 className="text-sm font-bold text-text-primary">
+              {editingId ? "Edit Shortcut" : "Shortcut Baru"}
+            </h3>
             <button type="button" onClick={closeForm} className="text-xs text-text-tertiary font-medium">Batal</button>
           </div>
 
@@ -197,7 +221,7 @@ export default function ShortcutManager({
           {error && <p className="text-sm text-status-danger font-medium text-center">{error}</p>}
 
           <Button fullWidth onClick={handleSave} disabled={saving}>
-            {saving ? "Menyimpan..." : "Simpan Shortcut"}
+            {saving ? "Menyimpan..." : editingId ? "Simpan Perubahan" : "Simpan Shortcut"}
           </Button>
         </div>
       )}
@@ -225,20 +249,31 @@ export default function ShortcutManager({
                   {shortcut.defaultAmount ? formatCurrencyShort(shortcut.defaultAmount) : "Nominal manual"}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => handleDelete(shortcut)}
-                disabled={deletingId === shortcut.id}
-                className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-text-tertiary
-                           hover:bg-status-danger-light hover:text-status-danger active:scale-95 transition-all disabled:opacity-40"
-                aria-label={`Hapus ${shortcut.label}`}
-              >
-                {deletingId === shortcut.id ? (
-                  <div className="w-4 h-4 rounded-full border-2 border-status-danger/30 border-t-status-danger animate-spin" />
-                ) : (
-                  <Trash2 size={17} strokeWidth={2} />
-                )}
-              </button>
+              <div className="flex gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => openEditForm(shortcut)}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-text-tertiary
+                             hover:bg-primary-50 hover:text-primary active:scale-95 transition-all"
+                  aria-label={`Edit ${shortcut.label}`}
+                >
+                  <Pencil size={16} strokeWidth={2} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(shortcut)}
+                  disabled={deletingId === shortcut.id}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-text-tertiary
+                             hover:bg-status-danger-light hover:text-status-danger active:scale-95 transition-all disabled:opacity-40"
+                  aria-label={`Hapus ${shortcut.label}`}
+                >
+                  {deletingId === shortcut.id ? (
+                    <div className="w-4 h-4 rounded-full border-2 border-status-danger/30 border-t-status-danger animate-spin" />
+                  ) : (
+                    <Trash2 size={17} strokeWidth={2} />
+                  )}
+                </button>
+              </div>
             </div>
           ))}
         </div>

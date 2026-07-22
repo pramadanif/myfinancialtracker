@@ -25,7 +25,7 @@ interface QuickAddModalProps {
 
 export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAddModalProps) {
   const router = useRouter();
-  const { notifyDataChange } = useDataRefresh();
+  const { version, notifyDataChange } = useDataRefresh();
   const [view, setView] = useState<ViewMode>("shortcuts");
   const [tab, setTab] = useState<TabType>("expense");
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -65,16 +65,38 @@ export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAdd
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchData();
-      if (defaultDate) setDate(defaultDate);
-      setShowSuccess(false);
-      setError("");
+    if (!isOpen) return;
+    fetchData();
+  }, [isOpen, version, fetchData]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (defaultDate) setDate(defaultDate);
+    setShowSuccess(false);
+    setError("");
+    setSelectedShortcut(null);
+    setView("shortcuts");
+    setTab("expense");
+  }, [isOpen, defaultDate]);
+
+  useEffect(() => {
+    if (!selectedShortcut) return;
+    const fresh = shortcuts.find((s) => s.id === selectedShortcut.id);
+    if (!fresh) {
       setSelectedShortcut(null);
-      setView("shortcuts");
-      setTab("expense");
+      if (view === "confirm") setView("shortcuts");
+      return;
     }
-  }, [isOpen, defaultDate, fetchData]);
+    if (
+      fresh.label !== selectedShortcut.label ||
+      fresh.defaultAmount !== selectedShortcut.defaultAmount ||
+      fresh.accountId !== selectedShortcut.accountId ||
+      fresh.categoryId !== selectedShortcut.categoryId
+    ) {
+      setSelectedShortcut(fresh);
+      setAmount(fresh.defaultAmount || 0);
+    }
+  }, [shortcuts, selectedShortcut, view]);
 
   const applyShortcutToForm = (shortcut: QuickShortcutWithRelations) => {
     setAccountId(shortcut.accountId);

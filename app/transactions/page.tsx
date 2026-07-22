@@ -85,8 +85,8 @@ function TransactionsContent() {
   useEffect(() => {
     fetchTransactions();
     fetchAccounts();
-    fetch("/api/categories").then((r) => r.json()).then(setCategories);
-    fetch("/api/shortcuts").then((r) => r.json()).then(setShortcuts);
+    fetch("/api/categories", { cache: "no-store" }).then((r) => r.json()).then(setCategories);
+    fetch("/api/shortcuts", { cache: "no-store" }).then((r) => r.json()).then(setShortcuts);
   }, [fetchTransactions, fetchAccounts, version]);
 
   const summary = computePeriodSummary(transactions);
@@ -117,7 +117,7 @@ function TransactionsContent() {
   };
 
   const refreshShortcuts = () => {
-    fetch("/api/shortcuts").then((r) => r.json()).then(setShortcuts);
+    notifyDataChange();
   };
 
   const categoryTotals = transactions

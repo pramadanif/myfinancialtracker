@@ -26,7 +26,7 @@ export default function DashboardClient({ data: initialData }: { data: Dashboard
 
   useEffect(() => {
     if (version === 0) return;
-    fetch("/api/dashboard")
+    fetch("/api/dashboard", { cache: "no-store" })
       .then((r) => r.json())
       .then((next) => {
         setData(next);

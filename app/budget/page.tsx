@@ -33,7 +33,7 @@ const PERIOD_LABEL: Record<string, string> = {
 
 export default function BudgetPage() {
   const router = useRouter();
-  const { version } = useDataRefresh();
+  const { version, notifyDataChange } = useDataRefresh();
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [activeTab, setActiveTab] = useState<BudgetTab>(BudgetPeriod.WEEKLY);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export default function BudgetPage() {
   });
 
   const fetchBudget = () => {
-    fetch("/api/budget").then((r) => r.json()).then(setCategories);
+    fetch("/api/budget", { cache: "no-store" }).then((r) => r.json()).then(setCategories);
   };
 
   useEffect(() => { fetchBudget(); }, [version]);
@@ -86,6 +86,7 @@ export default function BudgetPage() {
     setEditingId(null);
     setSaving(false);
     fetchBudget();
+    notifyDataChange();
     router.refresh();
   };
 
@@ -124,6 +125,7 @@ export default function BudgetPage() {
         monthlyBudget: "",
       });
       fetchBudget();
+      notifyDataChange();
       router.refresh();
     }
   };
@@ -140,6 +142,7 @@ export default function BudgetPage() {
       }
       if (editingId === cat.id) setEditingId(null);
       fetchBudget();
+      notifyDataChange();
       router.refresh();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal menghapus kategori");
