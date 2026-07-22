@@ -1,25 +1,41 @@
 /**
  * Import transaksi dari Excel Money Manager export.
- * Usage: node --env-file=.env scripts/import-excel.mjs [path-to-xlsx] [--replace]
+ * Usage: node --env-file=.env scripts/import-excel.mjs [path-to-xlsx] [--replace] [--dry-run]
  */
 
-import { readFileSync, existsSync } from "fs";
+import { existsSync } from "fs";
 import { resolve, basename } from "path";
 import XLSX from "xlsx";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+/** Override kategori berdasarkan kata kunci di Note/Subcategory (prioritas tertinggi) */
+const NOTE_KEYWORD_MAP = [
+  { keywords: ["bensin", "bendin", "pertamax", "shell", "spbu", "oli"], category: "Bensin" },
+  { keywords: ["listrik", "pln", "token listrik"], category: "Tagihan" },
+  { keywords: ["pulsa", "kuota", "data"], category: "Top Up E-wallet" },
+  { keywords: ["laundry"], category: "Lain-lain kecil" },
+  { keywords: ["sampo", "sabun", "minimarket", "indomaret", "alfamart"], category: "Minimarket" },
+  { keywords: ["kipas", "apparel", "baju", "celana"], category: "Belanja Retail" },
+  { keywords: ["ai", "cursor", "chatgpt", "subscription", "langganan"], category: "Lain-lain kecil" },
+  { keywords: ["admin", "pendidikan", "kuliah", "sekolah"], category: "Lain-lain kecil" },
+  { keywords: ["keluar", "transfer", "kirim"], category: "Transfer ke Orang" },
+  { keywords: ["selisih", "koreksi"], category: "Lain-lain kecil" },
+  { keywords: ["wismie", "seafood", "shamrock", "gultik", "fourspace", "warung", "kopi", "makan", "nasi", "bakso"], category: "Makan & Minum" },
+];
+
+/** Mapping kategori Excel → kategori app (jika Note tidak match keyword) */
 const CATEGORY_MAP = {
   "🍜 Food": "Makan & Minum",
-  "👬🏻 Social Life": "Hotel/Hiburan/Nonton",
-  "🖼 Culture": "Hotel/Hiburan/Nonton",
   "🚖 Transport": "Bensin",
   "💰 Salary": "Income/Gaji",
+  "💵 Petty cash": "Income/Gaji",
   "🧥 Apparel": "Belanja Retail",
   "🪑 Household": "Tagihan",
   "📙 Education": "Lain-lain kecil",
-  "💵 Petty cash": "Income/Gaji",
+  "👬🏻 Social Life": "Hotel/Hiburan/Nonton",
+  "🖼 Culture": "Hotel/Hiburan/Nonton",
 };
 
 const ACCOUNT_MAP = {
@@ -38,22 +54,40 @@ function stripEmoji(text) {
     .trim();
 }
 
-async function resolveCategory(excelCategory, isIncome) {
-  const mappedName = CATEGORY_MAP[excelCategory];
-  if (mappedName) {
-    const cat = await prisma.category.findUnique({ where: { name: mappedName } });
-    if (cat) return cat;
+function normalizeText(text) {
+  return String(text || "").trim().toLowerCase();
+}
+
+function resolveCategoryName(row, isIncome) {
+  if (isIncome) {
+    const excelCat = String(row.Category || "");
+    if (excelCat.includes("Salary") || excelCat.includes("Petty cash")) return "Income/Gaji";
+    return "Income/Gaji";
   }
 
-  const cleanName = stripEmoji(excelCategory) || (isIncome ? "Income/Gaji" : "Lain-lain kecil");
-  let cat = await prisma.category.findFirst({
-    where: { name: { contains: cleanName.slice(0, 20) } },
-  });
+  const note = normalizeText(row.Note);
+  const sub = normalizeText(row.Subcategory);
+  const combined = `${note} ${sub}`.trim();
+
+  for (const rule of NOTE_KEYWORD_MAP) {
+    if (rule.keywords.some((kw) => combined.includes(kw) || note === kw)) {
+      return rule.category;
+    }
+  }
+
+  const mapped = CATEGORY_MAP[row.Category];
+  if (mapped) return mapped;
+
+  return stripEmoji(row.Category) || "Lain-lain kecil";
+}
+
+async function getCategoryByName(name, isIncome) {
+  const cat = await prisma.category.findUnique({ where: { name } });
   if (cat) return cat;
 
   return prisma.category.create({
     data: {
-      name: cleanName,
+      name,
       emoji: "",
       iconName: isIncome ? "banknote" : "circle-dollar-sign",
       type: isIncome ? "INCOME" : "LIFESTYLE",
@@ -91,6 +125,7 @@ async function recalcBalances() {
 async function main() {
   const args = process.argv.slice(2);
   const replace = args.includes("--replace");
+  const dryRun = args.includes("--dry-run");
   const fileArg = args.find((a) => !a.startsWith("--"));
   const filePath = resolve(fileArg || "2026-01-01 ~ 12-31 (1).xlsx");
 
@@ -99,7 +134,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`Importing: ${basename(filePath)}`);
+  console.log(`Importing: ${basename(filePath)}${dryRun ? " (DRY RUN)" : ""}`);
 
   const wb = XLSX.readFile(filePath);
   const sheet = wb.Sheets[wb.SheetNames[0]];
@@ -112,7 +147,7 @@ async function main() {
 
   const account = await resolveAccount(rows[0].Accounts);
 
-  if (replace) {
+  if (replace && !dryRun) {
     const deleted = await prisma.transaction.deleteMany({ where: { accountId: account.id } });
     console.log(`Hapus ${deleted.count} transaksi lama di akun ${account.name}`);
   }
@@ -120,6 +155,7 @@ async function main() {
   let imported = 0;
   let skipped = 0;
   const errors = [];
+  const mappingStats = {};
 
   for (const row of rows) {
     try {
@@ -133,39 +169,54 @@ async function main() {
       const isIncome = ieType.toLowerCase().includes("income");
       const type = isIncome ? "CREDIT" : "DEBIT";
 
-      const category = await resolveCategory(row.Category, isIncome);
+      const categoryName = resolveCategoryName(row, isIncome);
+      const category = await getCategoryByName(categoryName, isIncome);
       const date = excelToDate(row.Period);
 
       const note = String(row.Note || "").trim();
       const sub = String(row.Subcategory || "").trim();
       const description = note || sub || stripEmoji(row.Category) || category.name;
 
-      await prisma.transaction.create({
-        data: {
-          accountId: account.id,
-          categoryId: category.id,
-          amount,
-          type,
-          description,
-          date,
-        },
-      });
+      const mapKey = `${row.Category}${note ? ` [${note}]` : ""} → ${categoryName}`;
+      mappingStats[mapKey] = (mappingStats[mapKey] || 0) + 1;
+
+      if (!dryRun) {
+        await prisma.transaction.create({
+          data: {
+            accountId: account.id,
+            categoryId: category.id,
+            amount,
+            type,
+            description,
+            date,
+          },
+        });
+      }
       imported++;
     } catch (err) {
       errors.push({ row, error: err instanceof Error ? err.message : String(err) });
     }
   }
 
-  await recalcBalances();
+  if (!dryRun) await recalcBalances();
 
-  const accountAfter = await prisma.account.findUnique({ where: { id: account.id } });
+  const accountAfter = dryRun
+    ? account
+    : await prisma.account.findUnique({ where: { id: account.id } });
+
+  console.log("\n=== Mapping kategori ===");
+  Object.entries(mappingStats)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([k, v]) => console.log(`  ${v}x  ${k}`));
 
   console.log("\n=== Import selesai ===");
   console.log(`Berhasil : ${imported}`);
   console.log(`Dilewati : ${skipped}`);
   console.log(`Error    : ${errors.length}`);
-  console.log(`Akun     : ${accountAfter?.name}`);
-  console.log(`Saldo    : Rp${Math.round(accountAfter?.currentBalance || 0).toLocaleString("id-ID")}`);
+  if (!dryRun) {
+    console.log(`Akun     : ${accountAfter?.name}`);
+    console.log(`Saldo    : Rp${Math.round(accountAfter?.currentBalance || 0).toLocaleString("id-ID")}`);
+  }
 
   if (errors.length > 0) {
     console.log("\nError detail (max 5):");
