@@ -2,52 +2,15 @@ import sharp from "sharp";
 import { mkdir, writeFile } from "fs/promises";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { renderIconSvg } from "./brand-icon.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, "..", "public");
 const iconsDir = join(publicDir, "icons");
 const splashDir = join(publicDir, "splash");
 
-const BRAND = "#0055A4";
-const WHITE = "#FFFFFF";
-
-async function iconSvg(size, maskable = false) {
-  const padding = maskable ? Math.round(size * 0.12) : 0;
-  const inner = size - padding * 2;
-  const r = maskable ? 0 : Math.round(inner * 0.22);
-  const cx = size / 2;
-  const walletW = inner * 0.5;
-  const walletH = inner * 0.32;
-  const wx = cx - walletW / 2;
-  const wy = cx - walletH / 2 + inner * 0.06;
-  const stroke = inner * 0.04;
-  const snapR = walletH * 0.11;
-
-  return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" fill="${BRAND}" ${r ? `rx="${r}"` : ""}/>
-  <rect x="${wx}" y="${wy}" width="${walletW}" height="${walletH}" rx="${walletH * 0.22}" fill="none" stroke="${WHITE}" stroke-width="${stroke}"/>
-  <circle cx="${wx + walletW * 0.78}" cy="${wy + walletH * 0.5}" r="${snapR}" fill="${WHITE}"/>
-  <line x1="${wx + walletW * 0.12}" y1="${wy + walletH * 0.38}" x2="${wx + walletW * 0.62}" y2="${wy + walletH * 0.38}" stroke="${WHITE}" stroke-width="${stroke * 0.7}" stroke-linecap="round" opacity="0.85"/>
-</svg>`);
-}
-
-async function splashSvg(w, h) {
-  const fontSize = Math.round(w * 0.08);
-  const iconSize = Math.round(w * 0.18);
-  return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-  <rect width="${w}" height="${h}" fill="${WHITE}"/>
-  <rect x="${(w - iconSize) / 2}" y="${h * 0.38}" width="${iconSize}" height="${iconSize}" rx="${iconSize * 0.22}" fill="${BRAND}"/>
-  <rect x="${(w - iconSize * 0.55) / 2}" y="${h * 0.38 + iconSize * 0.35}" width="${iconSize * 0.55}" height="${iconSize * 0.28}" rx="${iconSize * 0.06}" fill="none" stroke="${WHITE}" stroke-width="${iconSize * 0.04}"/>
-  <text x="${w / 2}" y="${h * 0.38 + iconSize + fontSize * 1.2}" text-anchor="middle" fill="${BRAND}" font-family="system-ui,sans-serif" font-size="${fontSize}" font-weight="700">Finance Tracker</text>
-</svg>`);
-}
-
 async function writePng(svg, path, size) {
-  await sharp(svg).resize(size, size).png().toFile(path);
-}
-
-async function writeSplash(svg, path, w, h) {
-  await sharp(svg).resize(w, h).png().toFile(path);
+  await sharp(Buffer.from(svg)).resize(size, size).png().toFile(path);
 }
 
 const SPLASH_SIZES = [
@@ -59,24 +22,54 @@ const SPLASH_SIZES = [
   { w: 750, h: 1334, name: "iphone-se" },
 ];
 
+async function writeSplash(iconSvg512, path, w, h) {
+  const iconSize = Math.round(Math.min(w, h) * 0.17);
+  const iconY = Math.round(h * 0.36);
+  const iconX = Math.round((w - iconSize) / 2);
+  const titleSize = Math.round(w * 0.062);
+  const subtitleSize = Math.round(w * 0.034);
+  const textY = iconY + iconSize + Math.round(titleSize * 1.4);
+
+  const iconBuf = await sharp(Buffer.from(iconSvg512))
+    .resize(iconSize, iconSize)
+    .png()
+    .toBuffer();
+
+  const textSvg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${Math.round(subtitleSize * 4)}">
+    <text x="${w / 2}" y="${titleSize}" text-anchor="middle" fill="#003D7A" font-family="system-ui,-apple-system,sans-serif" font-size="${titleSize}" font-weight="700" letter-spacing="-0.02em">Finance Tracker</text>
+    <text x="${w / 2}" y="${titleSize + subtitleSize * 1.55}" text-anchor="middle" fill="#64748B" font-family="system-ui,-apple-system,sans-serif" font-size="${subtitleSize}" font-weight="500">Catat keuangan dengan mudah</text>
+  </svg>`);
+
+  const textBuf = await sharp(textSvg).png().toBuffer();
+
+  await sharp({
+    create: { width: w, height: h, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
+  })
+    .composite([
+      { input: iconBuf, top: iconY, left: iconX },
+      { input: textBuf, top: textY, left: 0 },
+    ])
+    .png()
+    .toFile(path);
+}
+
 async function main() {
   await mkdir(iconsDir, { recursive: true });
   await mkdir(splashDir, { recursive: true });
 
-  const svg192 = await iconSvg(512);
-  const svgMaskable = await iconSvg(512, true);
+  const svgSource = renderIconSvg(512);
+  const svgMaskable = renderIconSvg(512, { maskable: true });
 
-  await writePng(svg192, join(iconsDir, "icon-192.png"), 192);
-  await writePng(svg192, join(iconsDir, "icon-512.png"), 512);
+  await writePng(svgSource, join(iconsDir, "icon-192.png"), 192);
+  await writePng(svgSource, join(iconsDir, "icon-512.png"), 512);
   await writePng(svgMaskable, join(iconsDir, "icon-512-maskable.png"), 512);
-  await writePng(svg192, join(publicDir, "apple-touch-icon.png"), 180);
-  await writePng(svg192, join(publicDir, "favicon.png"), 32);
+  await writePng(svgSource, join(publicDir, "apple-touch-icon.png"), 180);
+  await writePng(svgSource, join(publicDir, "favicon.png"), 32);
 
-  await writeFile(join(iconsDir, "icon.svg"), svg192);
+  await writeFile(join(iconsDir, "icon.svg"), svgSource);
 
   for (const { w, h, name } of SPLASH_SIZES) {
-    const svg = await splashSvg(w, h);
-    await writeSplash(svg, join(splashDir, `${name}.png`), w, h);
+    await writeSplash(svgSource, join(splashDir, `${name}.png`), w, h);
   }
 
   console.log("PWA assets generated in public/icons and public/splash");

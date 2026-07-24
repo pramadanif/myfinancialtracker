@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MapPin, Heart } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, Heart } from "lucide-react";
+import { addWeeks, subWeeks } from "date-fns";
 import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import { ActivityModeToggles } from "@/components/checkin/CheckinModeToggle";
 import { formatCurrency, formatCurrencyShort } from "@/lib/utils";
-import { toISODateString } from "@/lib/dates";
+import { toISODateString, getWeekRangeISO, formatWeekRangeLabel, getMonthRange } from "@/lib/dates";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import DonutChart from "@/components/reports/DonutChart";
@@ -17,12 +18,14 @@ import type { Account } from "@prisma/client";
 import type { ModeReportData, TransactionWithRelations } from "@/types";
 
 type ReportTab = "all" | "checkin" | "pacaran";
+type PeriodMode = "monthly" | "weekly";
 
 type ReportData = {
   categoryBreakdown: { name: string; iconName: string; amount: number }[];
   totalExpense: number;
   totalIncome: number;
   monthlyComparison: { month: string; income: number; outcome: number }[];
+  weeklyComparison: { week: string; income: number; outcome: number }[];
   checkin: ModeReportData & { modeActive: boolean };
   pacaran: ModeReportData & { modeActive: boolean };
 };
@@ -112,6 +115,8 @@ export default function ReportsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [filterAccount, setFilterAccount] = useState("");
   const [reportTab, setReportTab] = useState<ReportTab>("all");
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("monthly");
+  const [weekAnchor, setWeekAnchor] = useState(() => new Date());
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(1);
@@ -119,18 +124,40 @@ export default function ReportsPage() {
   });
   const [endDate, setEndDate] = useState(toISODateString(new Date()));
 
+  const applyPeriodMode = (mode: PeriodMode) => {
+    setPeriodMode(mode);
+    if (mode === "weekly") {
+      const { startDate: s, endDate: e } = getWeekRangeISO(weekAnchor);
+      setStartDate(s);
+      setEndDate(e);
+    } else {
+      const { start, end } = getMonthRange();
+      setStartDate(toISODateString(start));
+      setEndDate(toISODateString(end));
+    }
+  };
+
+  const shiftWeek = (direction: -1 | 1) => {
+    const next = direction === -1 ? subWeeks(weekAnchor, 1) : addWeeks(weekAnchor, 1);
+    setWeekAnchor(next);
+    const { startDate: s, endDate: e } = getWeekRangeISO(next);
+    setStartDate(s);
+    setEndDate(e);
+  };
+
   useEffect(() => {
     const params = new URLSearchParams();
     if (filterAccount) params.set("accountId", filterAccount);
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
+    params.set("period", periodMode);
 
     fetch(`/api/reports?${params}`, { cache: "no-store" })
       .then((r) => r.json())
       .then(setData);
 
     fetch("/api/accounts", { cache: "no-store" }).then((r) => r.json()).then(setAccounts);
-  }, [filterAccount, startDate, endDate, version]);
+  }, [filterAccount, startDate, endDate, periodMode, version]);
 
   const handleExport = () => {
     const params = new URLSearchParams({ format: "csv" });
@@ -140,6 +167,10 @@ export default function ReportsPage() {
     window.open(`/api/reports?${params}`, "_blank");
   };
 
+  const comparisonData = periodMode === "weekly"
+    ? (data?.weeklyComparison ?? []).map((w) => ({ label: w.week, income: w.income, outcome: w.outcome }))
+    : (data?.monthlyComparison ?? []).map((m) => ({ label: m.month, income: m.income, outcome: m.outcome }));
+
   return (
     <div className="px-4 pt-6 space-y-4 pb-24">
       <div className="flex items-center justify-between gap-2">
@@ -148,6 +179,24 @@ export default function ReportsPage() {
           <ActivityModeToggles compact />
           <Button size="sm" variant="secondary" onClick={handleExport}>CSV</Button>
         </div>
+      </div>
+
+      <div className="flex rounded-xl bg-background-secondary p-1 gap-1">
+        {[
+          { id: "monthly" as const, label: "Bulanan" },
+          { id: "weekly" as const, label: "Mingguan" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => applyPeriodMode(tab.id)}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+              periodMode === tab.id ? "bg-white text-primary shadow-sm" : "text-text-secondary"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       <div className="flex rounded-xl bg-background-secondary p-1 gap-1 overflow-x-auto">
@@ -169,27 +218,54 @@ export default function ReportsPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="space-y-2">
         <select
           value={filterAccount}
           onChange={(e) => setFilterAccount(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-border text-sm bg-white"
+          className="w-full px-3 py-2 rounded-xl border border-border text-sm bg-white"
         >
           <option value="">Semua Akun</option>
           {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
-        <input
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-border text-sm bg-white"
-        />
-        <input
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-border text-sm bg-white col-span-2"
-        />
+
+        {periodMode === "weekly" ? (
+          <div className="flex items-center gap-2 bg-white rounded-xl border border-border px-2 py-1.5">
+            <button
+              type="button"
+              onClick={() => shiftWeek(-1)}
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-text-secondary active:bg-background-secondary"
+              aria-label="Minggu sebelumnya"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <p className="flex-1 text-center text-sm font-semibold text-text-primary">
+              {formatWeekRangeLabel(weekAnchor)}
+            </p>
+            <button
+              type="button"
+              onClick={() => shiftWeek(1)}
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-text-secondary active:bg-background-secondary"
+              aria-label="Minggu berikutnya"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-border text-sm bg-white"
+            />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-border text-sm bg-white"
+            />
+          </div>
+        )}
       </div>
 
       {data && reportTab === "all" && (
@@ -211,12 +287,14 @@ export default function ReportsPage() {
           </Card>
 
           <Card>
-            <p className="text-sm font-medium text-text-primary mb-3">Income vs Outcome (6 Bulan)</p>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.monthlyComparison} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                  <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}rb`} />
+            <p className="text-sm font-medium text-text-primary mb-3">
+              Income vs Outcome ({periodMode === "weekly" ? "6 Minggu" : "6 Bulan"})
+            </p>
+            <div className="h-48 min-w-0 overflow-hidden">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <BarChart data={comparisonData} margin={{ top: 5, right: 0, left: -24, bottom: 0 }}>
+                  <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={0} />
+                  <YAxis tick={{ fontSize: 9 }} width={36} tickFormatter={(v) => `${(v / 1000).toFixed(0)}rb`} />
                   <Tooltip formatter={(value: number) => formatCurrency(value)} />
                   <Legend wrapperStyle={{ fontSize: 10 }} />
                   <Bar dataKey="income" name="Pemasukan" fill="#16A34A" radius={[2, 2, 0, 0]} />

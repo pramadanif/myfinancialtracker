@@ -912,32 +912,62 @@ export async function getReportData(filters: {
   }
   const settings = await getAppSettings();
 
-  // Monthly income vs outcome
+  // Monthly or weekly income vs outcome comparison
   const monthlyComparison = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - i);
-    const { start: mStart, end: mEnd } = getMonthRange(d);
+  const weeklyComparison = [];
 
-    const monthWhere: Record<string, unknown> = {
-      date: { gte: mStart, lte: mEnd },
-    };
-    if (accountId) monthWhere.accountId = accountId;
+  if (period === "weekly") {
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i * 7);
+      const { start: wStart, end: wEnd } = getWeekRange(d);
 
-    const monthTx = await prisma.transaction.findMany({ where: monthWhere });
+      const weekWhere: Record<string, unknown> = {
+        date: { gte: wStart, lte: wEnd },
+      };
+      if (accountId) weekWhere.accountId = accountId;
 
-    const income = monthTx
-      .filter((t) => t.type === TransactionType.CREDIT)
-      .reduce((sum, t) => sum + t.amount, 0);
-    const outcome = monthTx
-      .filter((t) => t.type === TransactionType.DEBIT)
-      .reduce((sum, t) => sum + t.amount, 0);
+      const weekTx = await prisma.transaction.findMany({ where: weekWhere });
 
-    monthlyComparison.push({
-      month: format(d, "MMM yyyy"),
-      income,
-      outcome,
-    });
+      const income = weekTx
+        .filter((t) => t.type === TransactionType.CREDIT)
+        .reduce((sum, t) => sum + t.amount, 0);
+      const outcome = weekTx
+        .filter((t) => t.type === TransactionType.DEBIT)
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      weeklyComparison.push({
+        week: `${format(wStart, "d MMM")}–${format(wEnd, "d MMM")}`,
+        income,
+        outcome,
+      });
+    }
+  } else {
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const { start: mStart, end: mEnd } = getMonthRange(d);
+
+      const monthWhere: Record<string, unknown> = {
+        date: { gte: mStart, lte: mEnd },
+      };
+      if (accountId) monthWhere.accountId = accountId;
+
+      const monthTx = await prisma.transaction.findMany({ where: monthWhere });
+
+      const income = monthTx
+        .filter((t) => t.type === TransactionType.CREDIT)
+        .reduce((sum, t) => sum + t.amount, 0);
+      const outcome = monthTx
+        .filter((t) => t.type === TransactionType.DEBIT)
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      monthlyComparison.push({
+        month: format(d, "MMM yyyy"),
+        income,
+        outcome,
+      });
+    }
   }
 
   return {
@@ -945,6 +975,7 @@ export async function getReportData(filters: {
     totalExpense,
     totalIncome,
     monthlyComparison,
+    weeklyComparison,
     transactions,
     period,
     checkin: {
@@ -981,6 +1012,7 @@ export async function getReportData(filters: {
 function format(d: Date, fmt: string): string {
   const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
   if (fmt === "MMM yyyy") return `${months[d.getMonth()]} ${d.getFullYear()}`;
+  if (fmt === "d MMM") return `${d.getDate()} ${months[d.getMonth()]}`;
   return d.toISOString();
 }
 

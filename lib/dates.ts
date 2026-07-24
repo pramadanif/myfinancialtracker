@@ -27,6 +27,20 @@ export function getWeekRange(date: Date = new Date()) {
   };
 }
 
+export function getWeekRangeISO(date: Date = new Date()) {
+  const { start, end } = getWeekRange(date);
+  return { startDate: toISODateString(start), endDate: toISODateString(end) };
+}
+
+export function formatWeekRangeLabel(date: Date = new Date()): string {
+  const { start, end } = getWeekRange(date);
+  const sameMonth = start.getMonth() === end.getMonth();
+  if (sameMonth) {
+    return `${format(start, "d", { locale: id })} – ${format(end, "d MMM yyyy", { locale: id })}`;
+  }
+  return `${format(start, "d MMM", { locale: id })} – ${format(end, "d MMM yyyy", { locale: id })}`;
+}
+
 export function getMonthRange(date: Date = new Date()) {
   return {
     start: startOfMonth(date),

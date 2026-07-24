@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Share, X, Smartphone } from "lucide-react";
+import { Share, X } from "lucide-react";
+import AppLogo from "@/components/ui/AppLogo";
 import { isIOS, isStandalone } from "@/lib/pwa";
 
 const DISMISS_KEY = "finance-pwa-install-dismissed";
@@ -30,9 +31,7 @@ export default function InstallPrompt() {
         <div className="bg-white rounded-2xl shadow-sheet border border-border-light p-4 animate-slide-up">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
-                <Smartphone size={18} className="text-primary" />
-              </div>
+              <AppLogo size={36} showShadow={false} />
               <div>
                 <p className="text-sm font-bold text-text-primary">Install ke Home Screen</p>
                 <p className="text-2xs text-text-tertiary">Terasa seperti app native</p>

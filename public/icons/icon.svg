@@ -1,6 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#0055A4" rx="113"/>
-  <rect x="128" y="204.79999999999998" width="256" height="163.84" rx="36.0448" fill="none" stroke="#FFFFFF" stroke-width="20.48"/>
-  <circle cx="327.68" cy="286.71999999999997" r="18.0224" fill="#FFFFFF"/>
-  <line x1="158.72" y1="267.0592" x2="286.72" y2="267.0592" stroke="#FFFFFF" stroke-width="14.335999999999999" stroke-linecap="round" opacity="0.85"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1A6FBE"/>
+      <stop offset="100%" stop-color="#003D7A"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6.144" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="110.08" fill="url(#bg)"/>
+  <g filter="url(#glow)">
+  <rect x="141.72" y="373.96" width="228.56" height="16.59" rx="8.29" fill="#FFFFFF" opacity="0.35"/>
+  <rect x="147.25" y="292.86" width="47.92" height="81.10" rx="12.46" fill="#FFFFFF" opacity="0.72"/>
+  <rect x="232.04" y="248.63" width="47.92" height="125.34" rx="12.46" fill="#FFFFFF" opacity="0.86"/>
+  <rect x="316.83" y="197.02" width="47.92" height="176.95" rx="12.46" fill="#FFFFFF" opacity="1"/>
+  <circle cx="340.79" cy="174.90" r="6.71" fill="#FFFFFF"/>
+  </g>
 </svg>

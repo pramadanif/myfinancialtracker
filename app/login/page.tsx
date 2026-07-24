@@ -2,7 +2,8 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, Delete } from "lucide-react";
+import { Delete } from "lucide-react";
+import AppLogo from "@/components/ui/AppLogo";
 import { cn } from "@/lib/utils";
 
 const PIN_LENGTH = 6;
@@ -65,9 +66,7 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col items-center justify-center px-6">
         <div className="w-full max-w-sm">
           <div className="text-center mb-10">
-            <div className="w-20 h-20 bg-gradient-to-br from-primary to-primary-dark rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-button">
-              <Wallet size={36} color="#FFFFFF" strokeWidth={1.75} />
-            </div>
+            <AppLogo size={80} className="mx-auto mb-5" />
             <h1 className="text-2xl font-bold text-text-primary tracking-tight">Finance Tracker</h1>
             <p className="text-sm text-text-secondary mt-2">Masukkan PIN untuk melanjutkan</p>
           </div>
