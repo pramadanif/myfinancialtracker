@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Bell, BellOff, ChevronDown, ChevronUp } from "lucide-react";
+import Switch from "@/components/ui/Switch";
 import { canRequestPushPermission, isStandalone, urlBase64ToUint8Array } from "@/lib/pwa";
-import { cn } from "@/lib/utils";
 
 interface Preferences {
   dailyReminder: boolean;
@@ -208,24 +208,26 @@ export default function NotificationSettings() {
               >
                 Kirim notifikasi test
               </button>
-              <ToggleRow
-                label="Reminder harian"
-                sublabel={`Jam ${prefs.dailyReminderHour}:00 — jika belum input transaksi`}
-                checked={prefs.dailyReminder}
-                onChange={(v) => updatePref("dailyReminder", v)}
-              />
-              <ToggleRow
-                label="Alert budget 90%"
-                sublabel="Mingguan & bulanan saat hampir melewati batas"
-                checked={prefs.budgetAlert}
-                onChange={(v) => updatePref("budgetAlert", v)}
-              />
-              <ToggleRow
-                label="Ringkasan mingguan"
-                sublabel={`Senin jam ${prefs.weeklySummaryHour}:00`}
-                checked={prefs.weeklySummary}
-                onChange={(v) => updatePref("weeklySummary", v)}
-              />
+              <div className="rounded-xl border border-border-light divide-y divide-border-light overflow-hidden bg-white">
+                <ToggleRow
+                  label="Reminder harian"
+                  sublabel={`Jam ${prefs.dailyReminderHour}:00 WIB — jika belum input transaksi`}
+                  checked={prefs.dailyReminder}
+                  onChange={(v) => updatePref("dailyReminder", v)}
+                />
+                <ToggleRow
+                  label="Alert budget 90%"
+                  sublabel="Mingguan & bulanan saat hampir melewati batas"
+                  checked={prefs.budgetAlert}
+                  onChange={(v) => updatePref("budgetAlert", v)}
+                />
+                <ToggleRow
+                  label="Ringkasan mingguan"
+                  sublabel={`Senin jam ${prefs.weeklySummaryHour}:00 WIB`}
+                  checked={prefs.weeklySummary}
+                  onChange={(v) => updatePref("weeklySummary", v)}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -246,28 +248,16 @@ function ToggleRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-2">
-      <div>
-        <p className="text-sm font-medium text-text-primary">{label}</p>
-        <p className="text-2xs text-text-tertiary">{sublabel}</p>
+    <div className="flex items-center justify-between gap-4 px-3.5 py-3">
+      <div className="flex-1 min-w-0 pr-1">
+        <p className="text-sm font-semibold text-text-primary leading-snug">{label}</p>
+        <p className="text-2xs text-text-tertiary mt-0.5 leading-relaxed">{sublabel}</p>
       </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={cn(
-          "w-11 h-6 rounded-full transition-colors relative shrink-0",
-          checked ? "bg-primary" : "bg-border"
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform",
-            checked ? "translate-x-5" : "translate-x-0.5"
-          )}
-        />
-      </button>
+      <Switch
+        checked={checked}
+        onChange={onChange}
+        aria-label={label}
+      />
     </div>
   );
 }

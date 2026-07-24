@@ -5,11 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   format,
-  startOfMonth,
-  endOfMonth,
   addMonths,
   subMonths,
-  isSameMonth,
 } from "date-fns";
 import { id } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
@@ -23,7 +20,7 @@ import ShortcutManager from "@/components/transactions/ShortcutManager";
 import TransactionEditModal from "@/components/transactions/TransactionEditModal";
 import { LedgerSkeleton } from "@/components/ui/LoadingState";
 import { formatCurrencyLedger, cn } from "@/lib/utils";
-import { toISODateString } from "@/lib/dates";
+import { toISODateString, getMonthRange, todayAppDateString } from "@/lib/dates";
 import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import { ActivityModeToggles } from "@/components/checkin/CheckinModeToggle";
 import type { TransactionWithRelations, QuickShortcutWithRelations } from "@/types";
@@ -57,9 +54,11 @@ function TransactionsContent() {
   const [search, setSearch] = useState("");
   const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(null);
 
-  const monthStart = toISODateString(startOfMonth(currentMonth));
-  const monthEnd = toISODateString(endOfMonth(currentMonth));
-  const isCurrentMonth = isSameMonth(currentMonth, new Date());
+  const { start: monthStartDate, end: monthEndDate } = getMonthRange(currentMonth);
+  const monthStart = toISODateString(monthStartDate);
+  const monthEnd = toISODateString(monthEndDate);
+  const isCurrentMonth =
+    toISODateString(currentMonth).slice(0, 7) === todayAppDateString().slice(0, 7);
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);

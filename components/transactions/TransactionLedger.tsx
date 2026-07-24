@@ -1,8 +1,9 @@
 "use client";
 
-import { format, parseISO, getDay } from "date-fns";
+import { format, getDay } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { formatCurrencyLedger, cn } from "@/lib/utils";
+import { toAppDateString, parseAppDayStart } from "@/lib/dates";
 import { CategoryIconBox } from "@/components/ui/DynamicIcon";
 import EmptyState from "@/components/ui/EmptyState";
 import { TransactionType } from "@/types/enums";
@@ -29,7 +30,7 @@ function groupByDate(transactions: TransactionWithRelations[]): DayGroup[] {
   const map = new Map<string, TransactionWithRelations[]>();
 
   for (const tx of transactions) {
-    const dateKey = format(new Date(tx.date), "yyyy-MM-dd");
+    const dateKey = toAppDateString(new Date(tx.date));
     const existing = map.get(dateKey);
     if (existing) existing.push(tx);
     else map.set(dateKey, [tx]);
@@ -38,7 +39,7 @@ function groupByDate(transactions: TransactionWithRelations[]): DayGroup[] {
   return Array.from(map.entries())
     .sort(([a], [b]) => b.localeCompare(a))
     .map(([dateKey, items]) => {
-      const d = parseISO(dateKey);
+      const d = parseAppDayStart(dateKey);
       const dayOfWeek = getDay(d);
       let totalExpense = 0;
       let totalIncome = 0;

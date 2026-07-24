@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { getWeekRange, getMonthRange, getDayRange, toISODateString } from "./dates";
+import { getWeekRange, getMonthRange, getDayRange, toISODateString, parseAppDayStart, parseAppDayEnd, toAppDateString, normalizeTransactionDate, addDays } from "./dates";
 import { CategoryType, TransactionType, BudgetPeriod } from "@/types/enums";
 import type { AddTransactionInput, TransferInput, WeeklyBudgetAlert } from "@/types";
 
@@ -36,7 +36,7 @@ export async function createTransaction(input: AddTransactionInput) {
         amount,
         type: type as TransactionType,
         description: description || "",
-        date: new Date(date),
+        date: normalizeTransactionDate(date),
         isCheckin,
         isPacaran,
       },
@@ -75,7 +75,7 @@ export async function createTransfer(input: TransferInput) {
         amount,
         type: TransactionType.TRANSFER_OUT,
         description: description || "",
-        date: new Date(date),
+        date: normalizeTransactionDate(date),
       },
     });
 
@@ -86,7 +86,7 @@ export async function createTransfer(input: TransferInput) {
         amount,
         type: TransactionType.TRANSFER_IN,
         description: description || "",
-        date: new Date(date),
+        date: normalizeTransactionDate(date),
         linkedTransferId: transferOut.id,
       },
     });
@@ -132,7 +132,7 @@ export async function updateTransaction(
   const newAccountId = input.accountId ?? existing.accountId;
   const newCategoryId = input.categoryId ?? existing.categoryId;
   const newDescription = input.description ?? existing.description;
-  const newDate = input.date ? new Date(input.date) : existing.date;
+  const newDate = input.date ? normalizeTransactionDate(input.date) : existing.date;
 
   if (newAmount <= 0) throw new Error("Nominal harus lebih dari 0");
   if (!newCategoryId) throw new Error("Kategori wajib diisi");
@@ -297,12 +297,8 @@ export async function getTransactions(filters: {
   if (search) where.description = { contains: search };
   if (startDate || endDate) {
     where.date = {};
-    if (startDate) (where.date as Record<string, Date>).gte = new Date(startDate);
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      (where.date as Record<string, Date>).lte = end;
-    }
+    if (startDate) (where.date as Record<string, Date>).gte = parseAppDayStart(startDate);
+    if (endDate) (where.date as Record<string, Date>).lte = parseAppDayEnd(endDate);
   }
 
   const [transactions, total] = await Promise.all([
@@ -501,18 +497,15 @@ export async function getDashboardData() {
     }
   }
 
-  // Last 7 days strip
+  // Last 7 days strip (WIB)
   const last7Days = [];
-  const today = new Date();
+  const todayKey = toAppDateString(new Date());
   const dayTotals: number[] = [];
 
   for (let i = 6; i >= 0; i--) {
-    const day = new Date(today);
-    day.setDate(day.getDate() - i);
-    const dayStart = new Date(day);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(day);
-    dayEnd.setHours(23, 59, 59, 999);
+    const dayKey = toAppDateString(addDays(parseAppDayStart(todayKey), i - 6));
+    const dayStart = parseAppDayStart(dayKey);
+    const dayEnd = parseAppDayEnd(dayKey);
 
     const dayExpenses = await prisma.transaction.aggregate({
       where: {
@@ -525,7 +518,7 @@ export async function getDashboardData() {
     const total = dayExpenses._sum.amount || 0;
     dayTotals.push(total);
     last7Days.push({
-      date: toISODateString(day),
+      date: dayKey,
       total,
       isAboveAverage: false,
     });
@@ -582,8 +575,12 @@ export async function getCalendarData(year: number, month: number, filters?: {
   categoryId?: string;
   accountId?: string;
 }) {
-  const start = new Date(year, month, 1);
-  const end = new Date(year, month + 1, 0, 23, 59, 59, 999);
+  const mm = String(month + 1).padStart(2, "0");
+  const startStr = `${year}-${mm}-01`;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const endStr = `${year}-${mm}-${String(lastDay).padStart(2, "0")}`;
+  const start = parseAppDayStart(startStr);
+  const end = parseAppDayEnd(endStr);
 
   const where: Record<string, unknown> = {
     type: TransactionType.DEBIT,
@@ -602,7 +599,7 @@ export async function getCalendarData(year: number, month: number, filters?: {
   const dayMap = new Map<string, { total: number; transactions: typeof transactions }>();
 
   for (const tx of transactions) {
-    const dateKey = toISODateString(tx.date);
+    const dateKey = toAppDateString(tx.date);
     const existing = dayMap.get(dateKey);
     if (existing) {
       existing.total += tx.amount;
@@ -632,10 +629,8 @@ export async function getDayTransactions(
   date: string,
   filters?: { accountId?: string; categoryId?: string }
 ) {
-  const dayStart = new Date(date);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(date);
-  dayEnd.setHours(23, 59, 59, 999);
+  const dayStart = parseAppDayStart(date);
+  const dayEnd = parseAppDayEnd(date);
 
   const where: Record<string, unknown> = {
     date: { gte: dayStart, lte: dayEnd },
@@ -843,9 +838,8 @@ export async function getReportData(filters: {
 }) {
   const { accountId, startDate, endDate, period = "monthly" } = filters;
 
-  const start = startDate ? new Date(startDate) : getMonthRange().start;
-  const end = endDate ? new Date(endDate) : getMonthRange().end;
-  end.setHours(23, 59, 59, 999);
+  const start = startDate ? parseAppDayStart(startDate) : getMonthRange().start;
+  const end = endDate ? parseAppDayEnd(endDate) : getMonthRange().end;
 
   const where: Record<string, unknown> = {
     date: { gte: start, lte: end },
@@ -1027,12 +1021,8 @@ export async function exportTransactionsCSV(filters: {
   if (accountId) where.accountId = accountId;
   if (startDate || endDate) {
     where.date = {};
-    if (startDate) (where.date as Record<string, Date>).gte = new Date(startDate);
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      (where.date as Record<string, Date>).lte = end;
-    }
+    if (startDate) (where.date as Record<string, Date>).gte = parseAppDayStart(startDate);
+    if (endDate) (where.date as Record<string, Date>).lte = parseAppDayEnd(endDate);
   }
 
   const transactions = await prisma.transaction.findMany({
@@ -1043,7 +1033,7 @@ export async function exportTransactionsCSV(filters: {
 
   const header = "Tanggal,Akun,Kategori,Tipe,Nominal,Deskripsi\n";
   const rows = transactions.map((t) => {
-    const date = toISODateString(t.date);
+    const date = toAppDateString(t.date);
     const account = t.account.name;
     const category = t.category?.name || "";
     const type = t.type;

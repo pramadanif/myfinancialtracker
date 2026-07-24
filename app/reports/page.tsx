@@ -6,7 +6,7 @@ import { addWeeks, subWeeks } from "date-fns";
 import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import { ActivityModeToggles } from "@/components/checkin/CheckinModeToggle";
 import { formatCurrency, formatCurrencyShort } from "@/lib/utils";
-import { toISODateString, getWeekRangeISO, formatWeekRangeLabel, getMonthRange } from "@/lib/dates";
+import { toISODateString, getWeekRangeISO, formatWeekRangeLabel, getMonthRange, todayAppDateString } from "@/lib/dates";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import DonutChart from "@/components/reports/DonutChart";
@@ -118,11 +118,10 @@ export default function ReportsPage() {
   const [periodMode, setPeriodMode] = useState<PeriodMode>("monthly");
   const [weekAnchor, setWeekAnchor] = useState(() => new Date());
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return toISODateString(d);
+    const { start } = getMonthRange();
+    return toISODateString(start);
   });
-  const [endDate, setEndDate] = useState(toISODateString(new Date()));
+  const [endDate, setEndDate] = useState(todayAppDateString());
 
   const applyPeriodMode = (mode: PeriodMode) => {
     setPeriodMode(mode);

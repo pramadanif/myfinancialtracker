@@ -7,7 +7,7 @@ import AmountShortcutBar from "@/components/transactions/AmountShortcutBar";
 import AccountSelector from "@/components/ui/AccountSelector";
 import CategoryGrid from "@/components/ui/CategoryGrid";
 import { formatCurrency, cn } from "@/lib/utils";
-import { toISODateString } from "@/lib/dates";
+import { toISODateString, todayAppDateString, addDays, parseAppDayStart } from "@/lib/dates";
 import type { Account, Category } from "@prisma/client";
 
 type TabType = "expense" | "income" | "transfer";
@@ -89,8 +89,8 @@ export default function TransactionFormBody({
   showTabs = true,
   hideTransfer = false,
 }: TransactionFormBodyProps) {
-  const today = toISODateString(new Date());
-  const yesterday = toISODateString((() => { const d = new Date(); d.setDate(d.getDate() - 1); return d; })());
+  const today = todayAppDateString();
+  const yesterday = toISODateString(addDays(parseAppDayStart(today), -1));
   const meta = TAB_META[tab];
   const tabs = hideTransfer ? (["expense", "income"] as TabType[]) : (["expense", "income", "transfer"] as TabType[]);
 

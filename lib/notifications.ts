@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { sendPushNotification } from "./push";
-import { getMonthRange, getWeekRange, getAppTimeParts, parseDateInput } from "./dates";
+import { getMonthRange, getWeekRange, getAppTimeParts, parseAppDayStart, parseAppDayEnd } from "./dates";
 import { CategoryType } from "@/types/enums";
 import { getWeeklyBudgetAlerts } from "./transactions";
 
@@ -70,9 +70,8 @@ export async function checkDailyReminder(now = new Date()) {
     return { skipped: true, reason: "already sent today" };
   }
 
-  const dayStart = parseDateInput(dateKey);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setHours(23, 59, 59, 999);
+  const dayStart = parseAppDayStart(dateKey);
+  const dayEnd = parseAppDayEnd(dateKey);
 
   const count = await prisma.transaction.count({
     where: { date: { gte: dayStart, lte: dayEnd } },

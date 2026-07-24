@@ -6,7 +6,7 @@ import TransactionFormBody from "@/components/transactions/TransactionFormBody";
 import TransactionModalShell from "@/components/transactions/TransactionModalShell";
 import DynamicIcon from "@/components/ui/DynamicIcon";
 import { formatCurrency } from "@/lib/utils";
-import { toISODateString } from "@/lib/dates";
+import { toAppDateString } from "@/lib/dates";
 import { TransactionType } from "@/types/enums";
 import type { TransactionWithRelations } from "@/types";
 import type { Account, Category } from "@prisma/client";
@@ -48,7 +48,7 @@ export default function TransactionEditModal({
     setCategoryId(transaction.categoryId || "");
     setAmount(transaction.amount);
     setDescription(transaction.description || "");
-    setDate(toISODateString(new Date(transaction.date)));
+    setDate(toAppDateString(new Date(transaction.date)));
     setTab(transaction.type === TransactionType.CREDIT ? "income" : "expense");
     setError("");
   }, [transaction]);

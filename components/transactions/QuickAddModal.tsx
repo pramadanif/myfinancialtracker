@@ -8,7 +8,7 @@ import ShortcutPicker, { ShortcutConfirm } from "@/components/transactions/Short
 import TransactionFormBody from "@/components/transactions/TransactionFormBody";
 import TransferForm from "@/components/transactions/TransferForm";
 import TransactionModalShell from "@/components/transactions/TransactionModalShell";
-import { toISODateString } from "@/lib/dates";
+import { toISODateString, todayAppDateString } from "@/lib/dates";
 import { formatCurrency } from "@/lib/utils";
 import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import { useCheckinMode, usePacaranMode } from "@/components/layout/CheckinProvider";
@@ -43,7 +43,7 @@ export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAdd
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState(0);
   const [description, setDescription] = useState("");
-  const [date, setDate] = useState(defaultDate || toISODateString(new Date()));
+  const [date, setDate] = useState(defaultDate || todayAppDateString());
   const [loading, setLoading] = useState(false);
   const [savingShortcutId, setSavingShortcutId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -247,7 +247,7 @@ export default function QuickAddModal({ isOpen, onClose, defaultDate }: QuickAdd
     setDescription("");
     setCategoryId("");
     setSelectedShortcut(null);
-    setDate(toISODateString(new Date()));
+    setDate(todayAppDateString());
     setError("");
     setShowSuccess(false);
     setView("shortcuts");

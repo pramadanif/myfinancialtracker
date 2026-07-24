@@ -6,7 +6,7 @@ import Numpad from "@/components/ui/Numpad";
 import AmountShortcutBar from "@/components/transactions/AmountShortcutBar";
 import { AccountIconBox } from "@/components/ui/DynamicIcon";
 import { cn, formatCurrency, formatCurrencyShort } from "@/lib/utils";
-import { toISODateString } from "@/lib/dates";
+import { toISODateString, todayAppDateString, addDays, parseAppDayStart } from "@/lib/dates";
 import type { Account } from "@prisma/client";
 
 interface TransferFormProps {
@@ -72,8 +72,8 @@ export default function TransferForm({
   error,
 }: TransferFormProps) {
   const [showNote, setShowNote] = useState(!!description);
-  const today = toISODateString(new Date());
-  const yesterday = toISODateString((() => { const d = new Date(); d.setDate(d.getDate() - 1); return d; })());
+  const today = todayAppDateString();
+  const yesterday = toISODateString(addDays(parseAppDayStart(today), -1));
 
   const fromAccount = accounts.find((a) => a.id === fromAccountId);
   const toAccount = accounts.find((a) => a.id === toAccountId);
