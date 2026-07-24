@@ -78,6 +78,40 @@ export function toISODateString(date: Date): string {
   return format(date, "yyyy-MM-dd");
 }
 
+/** Waktu app (default WIB) — untuk cron notifikasi di server UTC */
+export function getAppTimeParts(now = new Date()) {
+  const timeZone = process.env.APP_TIMEZONE || "Asia/Jakarta";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "numeric",
+    hour12: false,
+    weekday: "short",
+  }).formatToParts(now);
+
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "";
+
+  const weekdayMap: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+
+  return {
+    hour: parseInt(get("hour"), 10),
+    day: weekdayMap[get("weekday")] ?? 0,
+    dateKey: `${get("year")}-${get("month")}-${get("day")}`,
+    timeZone,
+  };
+}
+
 export function parseDateInput(dateStr: string): Date {
   const [year, month, day] = dateStr.split("-").map(Number);
   return new Date(year, month - 1, day, 12, 0, 0);

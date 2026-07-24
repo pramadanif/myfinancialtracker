@@ -22,11 +22,16 @@ export default function Numpad({ value, onChange, hideDisplay = false, compact =
       if (newVal <= 999999999) onChange(newVal);
       return;
     }
+    if (key === "000") {
+      const newVal = value * 1000;
+      if (newVal <= 999999999) onChange(newVal);
+      return;
+    }
     const newVal = parseInt(`${value}${key}`, 10);
     if (newVal <= 999999999) onChange(newVal);
   };
 
-  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "00", "0", "back"];
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "000", "00", "0", "back"];
 
   return (
     <div className="w-full">
@@ -46,6 +51,8 @@ export default function Numpad({ value, onChange, hideDisplay = false, compact =
             className={cn(
               "rounded-xl font-semibold transition-all active:scale-95",
               compact ? "h-11 text-base" : "h-14 text-xl",
+              key === "back" && "col-span-3",
+              key === "000" && (compact ? "text-sm" : "text-lg"),
               key === "back"
                 ? "bg-background-secondary text-text-secondary"
                 : "bg-white border border-border-light text-text-primary active:bg-primary-50"

@@ -49,7 +49,7 @@ export default function AccountOverview({ accounts, onTotalChange }: AccountOver
   return (
     <div>
       <SectionHeader title="Akun Saya" action={{ label: "Budget", href: "/budget" }} />
-      <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 snap-x scrollbar-hide">
+      <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 snap-x scrollbar-hide overscroll-x-contain">
         {accounts.map((account) => {
           const isHidden = hiddenIds.has(account.id);
           const change = account.weeklyChange ?? 0;

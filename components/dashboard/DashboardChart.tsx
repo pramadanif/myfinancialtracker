@@ -29,16 +29,16 @@ export default function DashboardChart({ data }: DashboardChartProps) {
   const colors = ["#0055A4", "#16A34A", "#F59E0B", "#DC2626", "#718096"];
 
   return (
-    <div className="h-48 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-          <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-          <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}rb`} />
+    <div className="h-48 w-full min-w-0 overflow-hidden">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <BarChart data={chartData} margin={{ top: 5, right: 0, left: -24, bottom: 0 }}>
+          <XAxis dataKey="week" tick={{ fontSize: 9 }} interval={0} />
+          <YAxis tick={{ fontSize: 9 }} width={36} tickFormatter={(v) => `${(v / 1000).toFixed(0)}rb`} />
           <Tooltip
             formatter={(value: number) => [`Rp${value.toLocaleString("id-ID")}`, ""]}
             labelStyle={{ fontSize: 12 }}
           />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend wrapperStyle={{ fontSize: 9 }} />
           {topCategories.map((cat, i) => (
             <Bar key={cat} dataKey={cat} fill={colors[i % colors.length]} radius={[2, 2, 0, 0]} />
           ))}

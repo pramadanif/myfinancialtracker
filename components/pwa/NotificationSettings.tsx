@@ -44,27 +44,66 @@ export default function NotificationSettings() {
     setMessage("");
     try {
       const keyRes = await fetch("/api/push/subscribe");
-      if (!keyRes.ok) throw new Error("Push belum dikonfigurasi di server");
+      if (!keyRes.ok) {
+        const err = await keyRes.json().catch(() => ({}));
+        throw new Error(err.error || "Push belum dikonfigurasi di server");
+      }
       const { publicKey } = await keyRes.json();
 
-      const registration = await navigator.serviceWorker.ready;
+      if (!("serviceWorker" in navigator)) {
+        throw new Error("Browser tidak mendukung service worker");
+      }
+
+      let registration = await navigator.serviceWorker.getRegistration("/");
+      if (!registration) {
+        registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      }
+      await navigator.serviceWorker.ready;
+
+      const perm = await Notification.requestPermission();
+      setPermission(perm);
+      if (perm !== "granted") {
+        throw new Error("Izin notifikasi ditolak. Aktifkan di Pengaturan iPhone.");
+      }
+
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
       });
 
       const json = subscription.toJSON();
-      await fetch("/api/push/subscribe", {
+      const saveRes = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(json),
       });
+      if (!saveRes.ok) {
+        throw new Error("Gagal menyimpan subscription ke server");
+      }
 
-      setPermission(Notification.permission);
       await loadPrefs();
       setMessage("Notifikasi aktif!");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Gagal mengaktifkan notifikasi");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendTest = async () => {
+    setLoading(true);
+    setMessage("");
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Gagal mengirim test");
+      setMessage(
+        data.sent > 0
+          ? `Test terkirim ke ${data.sent} perangkat`
+          : "Tidak ada perangkat yang menerima push"
+      );
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Gagal mengirim test");
     } finally {
       setLoading(false);
     }
@@ -161,6 +200,14 @@ export default function NotificationSettings() {
 
           {prefs && permission === "granted" && (
             <div className="space-y-2">
+              <button
+                type="button"
+                onClick={sendTest}
+                disabled={loading}
+                className="w-full py-2.5 rounded-xl border border-border-light text-sm font-semibold text-text-primary disabled:opacity-50"
+              >
+                Kirim notifikasi test
+              </button>
               <ToggleRow
                 label="Reminder harian"
                 sublabel={`Jam ${prefs.dailyReminderHour}:00 — jika belum input transaksi`}

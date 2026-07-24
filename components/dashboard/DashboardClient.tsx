@@ -42,7 +42,7 @@ export default function DashboardClient({ data: initialData }: { data: Dashboard
           <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
           <div className="absolute -right-4 -bottom-12 w-32 h-32 rounded-full bg-white/5" />
           <p className="text-xs font-semibold uppercase tracking-widest opacity-70">Total Saldo</p>
-          <p className="text-3xl font-bold mt-2 tabular-nums tracking-tight">
+          <p className="text-2xl sm:text-3xl font-bold mt-2 tabular-nums tracking-tight break-all leading-tight">
             {formatCurrency(visibleTotal)}
           </p>
           <div className="flex gap-4 mt-4 pt-4 border-t border-white/20">
@@ -115,16 +115,16 @@ export default function DashboardClient({ data: initialData }: { data: Dashboard
 
         <div>
           <SectionHeader title="7 Hari Terakhir" action={{ label: "Kalender", href: "/calendar" }} />
-          <Card padding="sm">
-            <div className="flex justify-between gap-1">
+          <Card padding="sm" className="min-w-0 overflow-hidden">
+            <div className="flex justify-between gap-0.5 min-w-0">
               {data.last7Days.map((day) => (
                 <Link
                   key={day.date}
                   href={`/calendar?date=${day.date}`}
-                  className="flex-1 text-center py-2 rounded-xl hover:bg-background-secondary transition-colors"
+                  className="flex-1 min-w-0 text-center py-2 rounded-xl hover:bg-background-secondary transition-colors"
                 >
-                  <p className="text-2xs text-text-tertiary font-medium">{formatDayName(day.date)}</p>
-                  <p className="text-xs font-bold text-text-primary mt-1 tabular-nums">
+                  <p className="text-2xs text-text-tertiary font-medium truncate">{formatDayName(day.date)}</p>
+                  <p className="text-[10px] sm:text-xs font-bold text-text-primary mt-1 tabular-nums truncate">
                     {day.total > 0 ? formatCurrencyShort(day.total) : "–"}
                   </p>
                   <div className={cn(
@@ -139,7 +139,7 @@ export default function DashboardClient({ data: initialData }: { data: Dashboard
 
         <div>
           <SectionHeader title="Pengeluaran per Minggu" action={{ label: "Laporan", href: "/reports" }} />
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <DashboardChart data={data.weeklyChart} />
           </Card>
         </div>

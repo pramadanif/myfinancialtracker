@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { sendPushNotification } from "./push";
-import { getMonthRange, getWeekRange, toISODateString } from "./dates";
+import { getMonthRange, getWeekRange, getAppTimeParts, parseDateInput } from "./dates";
 import { CategoryType } from "@/types/enums";
 import { getWeeklyBudgetAlerts } from "./transactions";
 
@@ -47,21 +47,35 @@ async function broadcast(payload: { title: string; body: string; url?: string; t
   return { sent: results.filter((r) => r.status === "fulfilled").length, failed: failed.length };
 }
 
-function isSameDay(a: Date, b: Date) {
-  return a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
+function isSameAppDay(a: Date | null | undefined, dateKey: string) {
+  if (!a) return false;
+  return getAppTimeParts(a).dateKey === dateKey;
+}
+
+export async function sendTestNotification() {
+  return broadcast({
+    title: "Test Notifikasi",
+    body: "Push notification berhasil! Finance Tracker siap mengingatkan kamu.",
+    url: "/dashboard",
+    tag: "test-notification",
+  });
 }
 
 export async function checkDailyReminder(now = new Date()) {
   const prefs = await getPreferences();
+  const { hour, dateKey } = getAppTimeParts(now);
   if (!prefs.dailyReminder) return { skipped: true, reason: "disabled" };
-  if (now.getHours() !== prefs.dailyReminderHour) return { skipped: true, reason: "wrong hour" };
-  if (prefs.lastDailySent && isSameDay(prefs.lastDailySent, now)) {
+  if (hour !== prefs.dailyReminderHour) return { skipped: true, reason: "wrong hour" };
+  if (isSameAppDay(prefs.lastDailySent, dateKey)) {
     return { skipped: true, reason: "already sent today" };
   }
 
-  const today = toISODateString(now);
+  const dayStart = parseDateInput(dateKey);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setHours(23, 59, 59, 999);
+
   const count = await prisma.transaction.count({
-    where: { date: { gte: new Date(today), lt: new Date(today + "T23:59:59") } },
+    where: { date: { gte: dayStart, lte: dayEnd } },
   });
 
   if (count > 0) {
@@ -91,8 +105,8 @@ export async function checkBudgetAlerts(now = new Date()) {
   const prefs = await getPreferences();
   if (!prefs.budgetAlert) return { skipped: true, reason: "disabled" };
 
+  const { dateKey: todayKey } = getAppTimeParts(now);
   const lastAlerts: Record<string, string> = JSON.parse(prefs.lastBudgetAlerts || "{}");
-  const todayKey = toISODateString(now);
   const alerts: BudgetAlert[] = [];
 
   const weeklyAlerts = await getWeeklyBudgetAlerts(90);
@@ -173,10 +187,10 @@ export async function checkWeeklySummary(now = new Date()) {
   const prefs = await getPreferences();
   if (!prefs.weeklySummary) return { skipped: true, reason: "disabled" };
 
-  const day = now.getDay();
+  const { hour, day, dateKey } = getAppTimeParts(now);
   if (day !== prefs.weeklySummaryDay) return { skipped: true, reason: "wrong day" };
-  if (now.getHours() !== prefs.weeklySummaryHour) return { skipped: true, reason: "wrong hour" };
-  if (prefs.lastWeeklySent && isSameDay(prefs.lastWeeklySent, now)) {
+  if (hour !== prefs.weeklySummaryHour) return { skipped: true, reason: "wrong hour" };
+  if (isSameAppDay(prefs.lastWeeklySent, dateKey)) {
     return { skipped: true, reason: "already sent" };
   }
 

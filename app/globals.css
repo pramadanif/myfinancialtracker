@@ -7,11 +7,15 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    max-width: 100%;
   }
 
   body {
     background-color: theme("colors.background.secondary");
     color: theme("colors.text.primary");
+    overflow-x: hidden;
+    max-width: 100%;
   }
 
   /* Consistent number rendering for financial data */
@@ -22,7 +26,7 @@
 
 @layer components {
   .page-container {
-    @apply min-h-screen;
+    @apply min-h-screen w-full max-w-full overflow-x-hidden;
     background-color: theme("colors.background.secondary");
   }
 
