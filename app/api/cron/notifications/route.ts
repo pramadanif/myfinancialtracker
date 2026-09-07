@@ -3,11 +3,14 @@ import { runAllNotificationChecks } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request) {
+function authorized(request: Request) {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
+  return Boolean(cronSecret) && authHeader === `Bearer ${cronSecret}`;
+}
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+async function handle(request: Request) {
+  if (!authorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -19,3 +22,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+// Vercel Cron memanggil endpoint via GET dengan header Authorization: Bearer $CRON_SECRET
+export const GET = handle;
+// Cron eksternal (cron-job.org, dll) memanggil via POST dengan header yang sama
+export const POST = handle;
