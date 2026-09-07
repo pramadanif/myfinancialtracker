@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getVapidPublicKey } from "@/lib/push";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const publicKey = getVapidPublicKey();
   if (!publicKey) {

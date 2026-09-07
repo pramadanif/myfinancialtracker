@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   let prefs = await prisma.notificationPreference.findUnique({ where: { id: "default" } });
   if (!prefs) {
