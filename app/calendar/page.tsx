@@ -14,7 +14,7 @@ import {
   isToday,
 } from "date-fns";
 import { id } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, SlidersHorizontal, X, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, SlidersHorizontal, X, AlertTriangle, Fuel } from "lucide-react";
 import { formatCurrencyShort, cn } from "@/lib/utils";
 import { toISODateString } from "@/lib/dates";
 import Card from "@/components/ui/Card";
@@ -30,6 +30,7 @@ import type { TransactionWithRelations, WeeklyBudgetAlert } from "@/types";
 type DayData = {
   total: number;
   isAboveAverage: boolean;
+  hasFuel?: boolean;
 };
 
 export default function CalendarPage() {
@@ -282,10 +283,15 @@ export default function CalendarPage() {
                       <span className="text-[8px] text-text-secondary leading-tight">
                         {formatCurrencyShort(dayData.total)}
                       </span>
-                      <div className={cn(
-                        "w-1.5 h-1.5 rounded-full mt-0.5",
-                        dayData.isAboveAverage ? "bg-status-danger" : "bg-status-safe"
-                      )} />
+                      <div className="flex items-center justify-center gap-0.5 mt-0.5 h-2.5">
+                        <div className={cn(
+                          "w-1.5 h-1.5 rounded-full",
+                          dayData.isAboveAverage ? "bg-status-danger" : "bg-status-safe"
+                        )} />
+                        {dayData.hasFuel && (
+                          <Fuel size={9} strokeWidth={2.5} className="text-amber-600" aria-label="Ada transaksi bensin" />
+                        )}
+                      </div>
                     </>
                   )}
                 </button>

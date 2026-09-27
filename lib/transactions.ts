@@ -387,21 +387,16 @@ async function getWeeklyGeneralSpent() {
   return spent._sum.amount || 0;
 }
 
-export async function getDashboardData() {
-  const accounts = await getAccounts();
-  const totalBalance = accounts.reduce((sum, a) => sum + a.currentBalance, 0);
-
+export async function getWeeklyBudgetSummary() {
   const { start: weekStart, end: weekEnd } = getWeekRange();
-  const { start: monthStart, end: monthEnd } = getMonthRange();
-
   const settings = await getAppSettings();
   const dailyCategories = await prisma.category.findMany({
     where: { type: CategoryType.DAILY_RECURRING },
   });
 
   const categoryWeeklyTarget = dailyCategories.reduce((sum, c) => sum + (c.weeklyBudget || 0), 0);
-  const weeklyTarget = settings.weeklyGeneralBudget ?? categoryWeeklyTarget;
-  const weeklySpent = settings.weeklyGeneralBudget != null
+  const target = settings.weeklyGeneralBudget ?? categoryWeeklyTarget;
+  const spent = settings.weeklyGeneralBudget != null
     ? await getWeeklyGeneralSpent()
     : (await prisma.transaction.aggregate({
         where: {
@@ -411,7 +406,27 @@ export async function getDashboardData() {
         },
         _sum: { amount: true },
       }))._sum.amount || 0;
-  const weeklyPercentage = weeklyTarget > 0 ? (weeklySpent / weeklyTarget) * 100 : 0;
+  const percentage = target > 0 ? (spent / target) * 100 : 0;
+
+  return { spent, target, percentage };
+}
+
+export async function getDashboardData() {
+  const accounts = await getAccounts();
+  const totalBalance = accounts.reduce((sum, a) => sum + a.currentBalance, 0);
+
+  const { start: weekStart, end: weekEnd } = getWeekRange();
+  const { start: monthStart, end: monthEnd } = getMonthRange();
+
+  const dailyCategories = await prisma.category.findMany({
+    where: { type: CategoryType.DAILY_RECURRING },
+  });
+
+  const {
+    spent: weeklySpent,
+    target: weeklyTarget,
+    percentage: weeklyPercentage,
+  } = await getWeeklyBudgetSummary();
 
   const foodCategory = await prisma.category.findFirst({
     where: { name: "Makan & Minum" },
@@ -613,11 +628,19 @@ export async function getCalendarData(year: number, month: number, filters?: {
   const allTotals = Array.from(dayMap.values()).map((d) => d.total);
   const avg = allTotals.length > 0 ? allTotals.reduce((a, b) => a + b, 0) / allTotals.length : 0;
 
-  const days: Record<string, { total: number; isAboveAverage: boolean; transactions: typeof transactions }> = {};
+  const days: Record<string, {
+    total: number;
+    isAboveAverage: boolean;
+    hasFuel: boolean;
+    transactions: typeof transactions;
+  }> = {};
   for (const [date, data] of Array.from(dayMap.entries())) {
     days[date] = {
       total: data.total,
       isAboveAverage: data.total > avg,
+      hasFuel: data.transactions.some(
+        (t) => t.category?.iconName === "fuel" || t.category?.name.toLowerCase() === "bensin"
+      ),
       transactions: data.transactions,
     };
   }

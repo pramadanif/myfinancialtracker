@@ -17,6 +17,13 @@ interface TransactionSummaryBarProps {
   accountLabel?: string;
   accounts?: AccountBalance[];
   showBreakdown?: boolean;
+  weeklyBudget?: { spent: number; target: number; percentage: number } | null;
+}
+
+function budgetBarColor(pct: number) {
+  if (pct >= 90) return "bg-rose-300";
+  if (pct >= 75) return "bg-amber-300";
+  return "bg-white";
 }
 
 const ACCOUNT_ORDER = ["BCA", "Seabank", "Cash"];
@@ -37,8 +44,11 @@ export default function TransactionSummaryBar({
   accountLabel,
   accounts = [],
   showBreakdown = false,
+  weeklyBudget,
 }: TransactionSummaryBarProps) {
   const breakdown = sortAccounts(accounts);
+  const hasBudget = !!weeklyBudget && weeklyBudget.target > 0;
+  const budgetPct = hasBudget ? Math.round(weeklyBudget.percentage) : 0;
 
   return (
     <div className="border-b border-border-light">
@@ -61,6 +71,26 @@ export default function TransactionSummaryBar({
             <p className="text-lg font-bold mt-1 tabular-nums tracking-tight leading-tight">
               {formatCurrency(accountBalance)}
             </p>
+
+            {hasBudget && (
+              <div className="mt-1.5">
+                <div className="flex items-center justify-between gap-2 text-[10px] leading-none">
+                  <span className="opacity-75 font-medium">Budget minggu ini</span>
+                  <span className="tabular-nums shrink-0">
+                    <span className="font-semibold">{formatCurrencyShort(weeklyBudget.spent)}</span>
+                    <span className="opacity-60"> / {formatCurrencyShort(weeklyBudget.target)}</span>
+                    <span className="mx-1 opacity-40">·</span>
+                    <span className="font-bold">{budgetPct}%</span>
+                  </span>
+                </div>
+                <div className="mt-1 h-[3px] rounded-full bg-white/15 overflow-hidden">
+                  <div
+                    className={cn("h-full rounded-full transition-all duration-500", budgetBarColor(budgetPct))}
+                    style={{ width: `${Math.min(budgetPct, 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             {showBreakdown && breakdown.length > 0 && (
               <div className="mt-2 pt-2 border-t border-white/15 grid grid-cols-3 gap-1">

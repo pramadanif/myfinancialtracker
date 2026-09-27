@@ -53,6 +53,7 @@ function TransactionsContent() {
   const [filterCategory, setFilterCategory] = useState("");
   const [search, setSearch] = useState("");
   const [editingTx, setEditingTx] = useState<TransactionWithRelations | null>(null);
+  const [weeklyBudget, setWeeklyBudget] = useState<{ spent: number; target: number; percentage: number } | null>(null);
 
   const { start: monthStartDate, end: monthEndDate } = getMonthRange(currentMonth);
   const monthStart = toISODateString(monthStartDate);
@@ -87,6 +88,10 @@ function TransactionsContent() {
     fetchAccounts();
     fetch("/api/categories", { cache: "no-store" }).then((r) => r.json()).then(setCategories);
     fetch("/api/shortcuts", { cache: "no-store" }).then((r) => r.json()).then(setShortcuts);
+    fetch("/api/budget/weekly-summary", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setWeeklyBudget)
+      .catch(() => setWeeklyBudget(null));
   }, [fetchTransactions, fetchAccounts, version]);
 
   const summary = computePeriodSummary(transactions);
@@ -218,6 +223,7 @@ function TransactionsContent() {
             accountLabel={accountLabel}
             accounts={accounts}
             showBreakdown={!filteredAccount && accounts.length > 1}
+            weeklyBudget={weeklyBudget}
           />
         )}
 

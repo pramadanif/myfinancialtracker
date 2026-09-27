@@ -11,6 +11,7 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:backup": "node --env-file=.env scripts/backup-db.mjs",
     "db:setup": "prisma migrate deploy && tsx prisma/seed.ts",
     "pwa:assets": "node scripts/generate-pwa-assets.mjs",
     "cron:notifications": "node --env-file=.env scripts/cron-once.mjs",
