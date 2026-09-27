@@ -586,6 +586,18 @@ export async function getDashboardData() {
   };
 }
 
+export const BIG_TRANSACTION_THRESHOLD = 100_000;
+
+export type CalendarDaySummary = {
+  total: number;
+  fixedTotal: number;
+  variableTotal: number;
+  count: number;
+  bigCount: number;
+  maxAmount: number;
+  categories: { name: string; iconName: string; type: string; amount: number; count: number }[];
+};
+
 export async function getCalendarData(year: number, month: number, filters?: {
   categoryId?: string;
   accountId?: string;
@@ -607,45 +619,63 @@ export async function getCalendarData(year: number, month: number, filters?: {
 
   const transactions = await prisma.transaction.findMany({
     where,
-    include: { account: true, category: true },
+    include: { category: true },
     orderBy: { date: "asc" },
   });
 
-  const dayMap = new Map<string, { total: number; transactions: typeof transactions }>();
-
+  const dayMap = new Map<string, typeof transactions>();
   for (const tx of transactions) {
     const dateKey = toAppDateString(tx.date);
     const existing = dayMap.get(dateKey);
-    if (existing) {
-      existing.total += tx.amount;
-      existing.transactions.push(tx);
-    } else {
-      dayMap.set(dateKey, { total: tx.amount, transactions: [tx] });
-    }
+    if (existing) existing.push(tx);
+    else dayMap.set(dateKey, [tx]);
   }
 
-  // Calculate 7-day rolling average for dot colors
-  const allTotals = Array.from(dayMap.values()).map((d) => d.total);
-  const avg = allTotals.length > 0 ? allTotals.reduce((a, b) => a + b, 0) / allTotals.length : 0;
+  const days: Record<string, CalendarDaySummary> = {};
+  for (const [date, items] of Array.from(dayMap.entries())) {
+    const byCategory = new Map<string, CalendarDaySummary["categories"][number]>();
+    let total = 0;
+    let fixedTotal = 0;
+    let bigCount = 0;
+    let maxAmount = 0;
 
-  const days: Record<string, {
-    total: number;
-    isAboveAverage: boolean;
-    hasFuel: boolean;
-    transactions: typeof transactions;
-  }> = {};
-  for (const [date, data] of Array.from(dayMap.entries())) {
+    for (const tx of items) {
+      const isFixed = tx.category?.type === CategoryType.MONTHLY_FIXED;
+      total += tx.amount;
+      if (isFixed) fixedTotal += tx.amount;
+      else if (tx.amount >= BIG_TRANSACTION_THRESHOLD) bigCount += 1;
+      if (tx.amount > maxAmount) maxAmount = tx.amount;
+
+      const key = tx.category?.id ?? "none";
+      const existing = byCategory.get(key);
+      if (existing) {
+        existing.amount += tx.amount;
+        existing.count += 1;
+      } else {
+        byCategory.set(key, {
+          name: tx.category?.name ?? "Lainnya",
+          iconName: tx.category?.iconName ?? "circle-dollar-sign",
+          type: tx.category?.type ?? "",
+          amount: tx.amount,
+          count: 1,
+        });
+      }
+    }
+
     days[date] = {
-      total: data.total,
-      isAboveAverage: data.total > avg,
-      hasFuel: data.transactions.some(
-        (t) => t.category?.iconName === "fuel" || t.category?.name.toLowerCase() === "bensin"
-      ),
-      transactions: data.transactions,
+      total,
+      fixedTotal,
+      variableTotal: total - fixedTotal,
+      count: items.length,
+      bigCount,
+      maxAmount,
+      categories: Array.from(byCategory.values()).sort((a, b) => b.amount - a.amount),
     };
   }
 
-  return { days, avg };
+  const { target: weeklyBudget } = await getWeeklyBudgetSummary();
+
+  return { days, weeklyBudget };
 }
 
 export async function getDayTransactions(

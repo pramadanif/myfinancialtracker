@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   format,
@@ -11,34 +11,34 @@ import {
   addMonths,
   subMonths,
   isSameMonth,
-  isToday,
 } from "date-fns";
 import { id } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, SlidersHorizontal, X, AlertTriangle, Fuel } from "lucide-react";
+import { ChevronLeft, ChevronRight, SlidersHorizontal, X, AlertTriangle } from "lucide-react";
 import { formatCurrencyShort, cn } from "@/lib/utils";
-import { toISODateString } from "@/lib/dates";
-import Card from "@/components/ui/Card";
+import { toISODateString, todayAppDateString, parseAppDayStart } from "@/lib/dates";
 import Button from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import TransactionLedger from "@/components/transactions/TransactionLedger";
 import TransactionEditModal from "@/components/transactions/TransactionEditModal";
+import CalendarSummary from "@/components/calendar/CalendarSummary";
+import CalendarHeatGrid from "@/components/calendar/CalendarHeatGrid";
+import DayAuditBreakdown from "@/components/calendar/DayAuditBreakdown";
+import { computeMonthStats, dayValue, type CalendarDay } from "@/components/calendar/calendar-utils";
 import { useQuickAdd } from "@/components/layout/QuickAddProvider";
 import { useDataRefresh } from "@/components/layout/DataRefreshProvider";
 import type { Account, Category } from "@prisma/client";
 import type { TransactionWithRelations, WeeklyBudgetAlert } from "@/types";
 
-type DayData = {
-  total: number;
-  isAboveAverage: boolean;
-  hasFuel?: boolean;
-};
+const HIDE_FIXED_KEY = "finance-calendar-hide-fixed";
 
 export default function CalendarPage() {
   const router = useRouter();
   const { openQuickAdd } = useQuickAdd();
   const { version, notifyDataChange } = useDataRefresh();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [days, setDays] = useState<Record<string, DayData>>({});
+  const [days, setDays] = useState<Record<string, CalendarDay>>({});
+  const [weeklyBudget, setWeeklyBudget] = useState(0);
+  const [hideFixed, setHideFixed] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [dayTransactions, setDayTransactions] = useState<TransactionWithRelations[]>([]);
   const [dayTotal, setDayTotal] = useState(0);
@@ -66,8 +66,19 @@ export default function CalendarPage() {
     if (res.ok) {
       const data = await res.json();
       setDays(data.days);
+      setWeeklyBudget(data.weeklyBudget ?? 0);
     }
   }, [year, month, filterAccount, filterCategory]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(HIDE_FIXED_KEY);
+    if (stored !== null) setHideFixed(stored === "1");
+  }, []);
+
+  const updateHideFixed = (value: boolean) => {
+    setHideFixed(value);
+    localStorage.setItem(HIDE_FIXED_KEY, value ? "1" : "0");
+  };
 
   const fetchAlerts = useCallback(async () => {
     const res = await fetch("/api/budget/alerts", { cache: "no-store" });
@@ -133,12 +144,23 @@ export default function CalendarPage() {
   };
 
   const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const dateKeys = useMemo(() => {
+    const start = new Date(year, month, 1);
+    return eachDayOfInterval({ start, end: endOfMonth(start) }).map(toISODateString);
+  }, [year, month]);
   const startDayOfWeek = getDay(monthStart);
   const paddingDays = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
   const isCurrentMonth = isSameMonth(currentDate, new Date());
-  const topAlert = weeklyAlerts[0];
+  const todayKey = todayAppDateString();
+  const monthLabel = format(currentDate, "MMMM", { locale: id });
+  const elapsedDays = dateKeys.filter((key) => key <= todayKey).length;
+
+  const stats = useMemo(
+    () => computeMonthStats(days, dateKeys, elapsedDays, hideFixed),
+    [days, dateKeys, elapsedDays, hideFixed]
+  );
+
+  const selectedDay = selectedDate ? days[selectedDate] : undefined;
 
   return (
     <div className="page-container">
@@ -223,82 +245,56 @@ export default function CalendarPage() {
       </div>
 
       <div className="px-4 pt-4 space-y-3 pb-4">
-        {topAlert && (
-          <Link href="/budget" className="block">
-            <div className="rounded-2xl border border-status-warning/30 bg-status-warning-light px-3.5 py-3 flex items-start gap-3 active:opacity-90">
-              <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shrink-0">
-                <AlertTriangle size={18} className="text-status-warning" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-text-primary">
-                  Budget mingguan {topAlert.percentage}%
-                </p>
-                <p className="text-xs text-text-secondary mt-0.5 truncate">
-                  {topAlert.name} · {formatCurrencyShort(topAlert.spent)} / {formatCurrencyShort(topAlert.budget)}
-                </p>
-                {weeklyAlerts.length > 1 && (
-                  <p className="text-2xs text-status-warning font-medium mt-1">
-                    +{weeklyAlerts.length - 1} kategori lain melewati 90%
-                  </p>
-                )}
-              </div>
-            </div>
-          </Link>
-        )}
+        <CalendarSummary
+          monthLabel={monthLabel}
+          stats={stats}
+          hideFixed={hideFixed}
+          onHideFixedChange={updateHideFixed}
+          onSelectDay={handleDayClick}
+        />
 
-        <Card padding="sm">
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"].map((d) => (
-              <div key={d} className="text-center text-[10px] font-medium text-text-secondary py-1">{d}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: paddingDays }).map((_, i) => (
-              <div key={`pad-${i}`} />
-            ))}
-            {calendarDays.map((day) => {
-              const dateKey = toISODateString(day);
-              const dayData = days[dateKey];
-              const hasExpense = dayData && dayData.total > 0;
-
-              return (
-                <button
-                  key={dateKey}
-                  type="button"
-                  onClick={() => handleDayClick(dateKey)}
+        {isCurrentMonth && weeklyAlerts.length > 0 && (
+          <div className="rounded-2xl border border-status-warning/30 bg-status-warning-light px-3 py-2.5">
+            <Link href="/budget" className="flex items-center gap-1.5 mb-2">
+              <AlertTriangle size={13} className="text-status-warning shrink-0" />
+              <span className="text-xs font-bold text-text-primary flex-1">Lewat budget minggu ini</span>
+              <span className="text-2xs font-medium text-status-warning">Kelola ›</span>
+            </Link>
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1">
+              {weeklyAlerts.map((alert) => (
+                <span
+                  key={alert.id}
                   className={cn(
-                    "flex flex-col items-center p-1 rounded-lg min-h-[52px] transition-colors",
-                    isToday(day) ? "bg-primary-light" : "hover:bg-background-secondary",
-                    selectedDate === dateKey && "ring-2 ring-primary"
+                    "shrink-0 flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-2xs border",
+                    alert.percentage >= 100 ? "border-status-danger/25" : "border-status-warning/30"
                   )}
                 >
-                  <span className={cn(
-                    "text-sm font-medium",
-                    !isSameMonth(day, currentDate) ? "text-text-secondary" : "text-text-primary"
-                  )}>
-                    {format(day, "d")}
+                  <span className="font-semibold text-text-primary">{alert.name}</span>
+                  <span
+                    className={cn(
+                      "font-bold tabular-nums",
+                      alert.percentage >= 100 ? "text-status-danger" : "text-status-warning"
+                    )}
+                  >
+                    {alert.percentage}%
                   </span>
-                  {hasExpense && (
-                    <>
-                      <span className="text-[8px] text-text-secondary leading-tight">
-                        {formatCurrencyShort(dayData.total)}
-                      </span>
-                      <div className="flex items-center justify-center gap-0.5 mt-0.5 h-2.5">
-                        <div className={cn(
-                          "w-1.5 h-1.5 rounded-full",
-                          dayData.isAboveAverage ? "bg-status-danger" : "bg-status-safe"
-                        )} />
-                        {dayData.hasFuel && (
-                          <Fuel size={9} strokeWidth={2.5} className="text-amber-600" aria-label="Ada transaksi bensin" />
-                        )}
-                      </div>
-                    </>
-                  )}
-                </button>
-              );
-            })}
+                </span>
+              ))}
+            </div>
           </div>
-        </Card>
+        )}
+
+        <CalendarHeatGrid
+          dateKeys={dateKeys}
+          paddingDays={paddingDays}
+          days={days}
+          avgPerDay={stats.avgPerDay}
+          weeklyBudget={weeklyBudget}
+          hideFixed={hideFixed}
+          todayKey={todayKey}
+          selectedDate={selectedDate}
+          onSelectDay={handleDayClick}
+        />
       </div>
 
       {selectedDate && (
@@ -307,14 +303,19 @@ export default function CalendarPage() {
           <div className="relative w-full max-w-lg bg-white rounded-t-2xl max-h-[75vh] overflow-y-auto animate-slide-up">
             <div className="sticky top-0 bg-white border-b border-border px-4 py-3 flex items-center justify-between z-10 safe-area-top">
               <div>
-                <h3 className="font-bold text-text-primary">
-                  {format(new Date(selectedDate), "d MMMM yyyy", { locale: id })}
+                <h3 className="font-bold text-text-primary capitalize">
+                  {format(parseAppDayStart(selectedDate), "EEEE, d MMMM yyyy", { locale: id })}
                 </h3>
                 <p className="text-sm text-text-secondary">Total: {formatCurrencyShort(dayTotal)}</p>
               </div>
               <button type="button" onClick={() => setSelectedDate(null)} className="text-2xl text-text-secondary">&times;</button>
             </div>
             <div className="p-4 space-y-3">
+              <DayAuditBreakdown
+                day={selectedDay}
+                value={dayValue(selectedDay, hideFixed)}
+                avgPerDay={stats.avgPerDay}
+              />
               <TransactionLedger
                 transactions={dayTransactions}
                 onEdit={setEditingTx}
