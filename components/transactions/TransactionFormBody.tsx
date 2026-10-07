@@ -8,6 +8,8 @@ import AccountSelector from "@/components/ui/AccountSelector";
 import CategoryGrid from "@/components/ui/CategoryGrid";
 import { formatCurrency, cn } from "@/lib/utils";
 import { toISODateString, todayAppDateString, addDays, parseAppDayStart } from "@/lib/dates";
+import { format } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 import type { Account, Category } from "@prisma/client";
 
 type TabType = "expense" | "income" | "transfer";
@@ -128,6 +130,11 @@ export default function TransactionFormBody({
             />
           </label>
         </div>
+        {date && date.slice(0, 7) !== today.slice(0, 7) && (
+          <p className="mt-2 rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] font-medium text-amber-700">
+            Tanggal {format(parseAppDayStart(date), "d MMMM yyyy", { locale: idLocale })} bukan bulan ini — pastikan sudah benar.
+          </p>
+        )}
       </div>
 
       {/* Tipe */}
