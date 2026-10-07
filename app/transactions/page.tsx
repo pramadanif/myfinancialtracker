@@ -100,8 +100,22 @@ function TransactionsContent() {
   const filteredAccount = filterAccount ? accounts.find((a) => a.id === filterAccount) : null;
   const accountBalance = filteredAccount
     ? filteredAccount.currentBalance
-    : accounts.reduce((sum, a) => sum + a.currentBalance, 0);
+    : accounts.filter((a) => !a.excludeFromTotal).reduce((sum, a) => sum + a.currentBalance, 0);
   const accountLabel = filteredAccount?.name ?? (accounts.length > 1 ? "Semua akun" : accounts[0]?.name);
+
+  const toggleAccountTotal = async (accountId: string) => {
+    const target = accounts.find((a) => a.id === accountId);
+    if (!target) return;
+    const excludeFromTotal = !target.excludeFromTotal;
+    setAccounts((prev) => prev.map((a) => (a.id === accountId ? { ...a, excludeFromTotal } : a)));
+    const res = await fetch(`/api/accounts/${accountId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ excludeFromTotal }),
+    });
+    if (res.ok) notifyDataChange();
+    else fetchAccounts();
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Hapus transaksi ini?")) return;
@@ -223,6 +237,7 @@ function TransactionsContent() {
             accountLabel={accountLabel}
             accounts={accounts}
             showBreakdown={!filteredAccount && accounts.length > 1}
+            onToggleAccount={toggleAccountTotal}
             weeklyBudget={weeklyBudget}
           />
         )}

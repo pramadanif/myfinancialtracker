@@ -1,12 +1,14 @@
 "use client";
 
-import { Wallet } from "lucide-react";
+import { Wallet, EyeOff } from "lucide-react";
 import { formatCurrency, formatCurrencyLedger, formatCurrencyShort, cn } from "@/lib/utils";
 
 interface AccountBalance {
+  id: string;
   name: string;
   currentBalance: number;
   colorTag: string;
+  excludeFromTotal?: boolean;
 }
 
 interface TransactionSummaryBarProps {
@@ -17,6 +19,7 @@ interface TransactionSummaryBarProps {
   accountLabel?: string;
   accounts?: AccountBalance[];
   showBreakdown?: boolean;
+  onToggleAccount?: (accountId: string) => void;
   weeklyBudget?: { spent: number; target: number; percentage: number } | null;
 }
 
@@ -26,7 +29,7 @@ function budgetBarColor(pct: number) {
   return "bg-white";
 }
 
-const ACCOUNT_ORDER = ["BCA", "Seabank", "Cash"];
+const ACCOUNT_ORDER = ["BCA", "Seabank", "Cash", "Mandiri"];
 
 function sortAccounts(accounts: AccountBalance[]) {
   return [...accounts].sort((a, b) => {
@@ -44,6 +47,7 @@ export default function TransactionSummaryBar({
   accountLabel,
   accounts = [],
   showBreakdown = false,
+  onToggleAccount,
   weeklyBudget,
 }: TransactionSummaryBarProps) {
   const breakdown = sortAccounts(accounts);
@@ -93,30 +97,56 @@ export default function TransactionSummaryBar({
             )}
 
             {showBreakdown && breakdown.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-white/15 grid grid-cols-3 gap-1">
-                {breakdown.map((account, i) => (
-                  <div
-                    key={account.name}
-                    className={cn(
-                      "min-w-0 px-1",
-                      i > 0 && "border-l border-white/10"
-                    )}
-                  >
-                    <div className="flex items-center justify-center gap-0.5 mb-0.5">
-                      <span
-                        className="w-1 h-1 rounded-full shrink-0"
-                        style={{ backgroundColor: account.colorTag }}
-                      />
-                      <span className="text-[9px] font-semibold uppercase tracking-wide opacity-70 truncate">
-                        {account.name}
-                      </span>
-                    </div>
-                    <p className="text-[10px] font-bold tabular-nums leading-none text-center truncate">
-                      {formatCurrencyShort(account.currentBalance)}
-                    </p>
-                  </div>
-                ))}
+              <div
+                className="mt-2 pt-2 border-t border-white/15 grid gap-1"
+                style={{ gridTemplateColumns: `repeat(${breakdown.length}, minmax(0, 1fr))` }}
+              >
+                {breakdown.map((account, i) => {
+                  const excluded = !!account.excludeFromTotal;
+                  return (
+                    <button
+                      type="button"
+                      key={account.id}
+                      onClick={() => onToggleAccount?.(account.id)}
+                      disabled={!onToggleAccount}
+                      aria-pressed={!excluded}
+                      aria-label={excluded ? `Hitung ${account.name} ke saldo` : `Sembunyikan ${account.name} dari saldo`}
+                      className={cn(
+                        "min-w-0 px-1 transition-opacity active:opacity-60",
+                        i > 0 && "border-l border-white/10",
+                        excluded && "opacity-45"
+                      )}
+                    >
+                      <div className="flex items-center justify-center gap-0.5 mb-0.5">
+                        {excluded ? (
+                          <EyeOff size={8} strokeWidth={2.5} className="shrink-0" />
+                        ) : (
+                          <span
+                            className="w-1 h-1 rounded-full shrink-0"
+                            style={{ backgroundColor: account.colorTag }}
+                          />
+                        )}
+                        <span className="text-[9px] font-semibold uppercase tracking-wide opacity-70 truncate">
+                          {account.name}
+                        </span>
+                      </div>
+                      <p
+                        className={cn(
+                          "text-[10px] font-bold tabular-nums leading-none text-center truncate",
+                          excluded && "line-through decoration-white/50"
+                        )}
+                      >
+                        {formatCurrencyShort(account.currentBalance)}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
+            )}
+            {showBreakdown && breakdown.some((a) => a.excludeFromTotal) && (
+              <p className="mt-1.5 text-[9px] leading-none opacity-60 text-center">
+                Tap akun untuk hitung / sembunyikan dari saldo
+              </p>
             )}
           </div>
         </div>

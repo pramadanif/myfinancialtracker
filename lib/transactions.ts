@@ -413,7 +413,9 @@ export async function getWeeklyBudgetSummary() {
 
 export async function getDashboardData() {
   const accounts = await getAccounts();
-  const totalBalance = accounts.reduce((sum, a) => sum + a.currentBalance, 0);
+  const totalBalance = accounts
+    .filter((a) => !a.excludeFromTotal)
+    .reduce((sum, a) => sum + a.currentBalance, 0);
 
   const { start: weekStart, end: weekEnd } = getWeekRange();
   const { start: monthStart, end: monthEnd } = getMonthRange();

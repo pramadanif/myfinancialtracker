@@ -15,6 +15,7 @@ model Account {
   name           String          @unique
   colorTag       String
   currentBalance Float           @default(0)
+  excludeFromTotal Boolean       @default(false)
   createdAt      DateTime        @default(now())
   transactions   Transaction[]
   quickShortcuts QuickShortcut[]
