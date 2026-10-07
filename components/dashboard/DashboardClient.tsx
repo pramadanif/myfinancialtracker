@@ -11,6 +11,7 @@ import SectionHeader from "@/components/ui/SectionHeader";
 import DashboardChart from "@/components/dashboard/DashboardChart";
 import AccountOverview from "@/components/dashboard/AccountOverview";
 import NotificationSettings from "@/components/pwa/NotificationSettings";
+import SecuritySettings from "@/components/pwa/SecuritySettings";
 import DynamicIcon from "@/components/ui/DynamicIcon";
 import type { DashboardData } from "@/types";
 
@@ -146,7 +147,10 @@ export default function DashboardClient({ data: initialData }: { data: Dashboard
 
         <div>
           <SectionHeader title="Pengaturan App" />
-          <NotificationSettings />
+          <div className="space-y-3">
+            <SecuritySettings />
+            <NotificationSettings />
+          </div>
         </div>
       </div>
     </div>

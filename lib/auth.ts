@@ -13,6 +13,8 @@ export const sessionOptions = {
   },
 };
 
+export const IDLE_LOCK_MS = 10 * 60 * 1000;
+
 export async function getSession(): Promise<IronSession<SessionData>> {
   const cookieStore = await cookies();
   return getIronSession<SessionData>(cookieStore, sessionOptions);

@@ -105,6 +105,16 @@ model PushSubscription {
   createdAt DateTime @default(now())
 }
 
+model PasskeyCredential {
+  id         String   @id
+  publicKey  Bytes
+  counter    Int      @default(0)
+  transports String   @default("")
+  deviceName String   @default("")
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime?
+}
+
 model NotificationPreference {
   id                String    @id @default("default")
   dailyReminder     Boolean   @default(true)

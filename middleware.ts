@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getIronSession } from "iron-session";
-import { sessionOptions } from "@/lib/auth";
+import { sessionOptions, IDLE_LOCK_MS } from "@/lib/auth";
 import { SessionData } from "@/types/session";
 
-const publicPaths = ["/login", "/api/auth/login", "/api/cron/notifications"];
+const publicPaths = [
+  "/login",
+  "/api/auth/login",
+  "/api/auth/passkey/login",
+  "/api/auth/passkey/status",
+  "/api/cron/notifications",
+];
+const LAST_SEEN_REFRESH_MS = 30 * 1000;
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -23,7 +30,7 @@ export async function middleware(request: NextRequest) {
     if (pathname === "/login") {
       const response = NextResponse.next();
       const session = await getIronSession<SessionData>(request, response, sessionOptions);
-      if (session.isLoggedIn) {
+      if (session.isLoggedIn && session.lastSeen && Date.now() - session.lastSeen <= IDLE_LOCK_MS) {
         return NextResponse.redirect(new URL("/transactions", request.url));
       }
     }
@@ -32,16 +39,29 @@ export async function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
   const session = await getIronSession<SessionData>(request, response, sessionOptions);
+  const now = Date.now();
+  const idleExpired = session.isLoggedIn && (!session.lastSeen || now - session.lastSeen > IDLE_LOCK_MS);
 
-  if (!session.isLoggedIn) {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session.isLoggedIn || idleExpired) {
+    const denied = pathname.startsWith("/api/")
+      ? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      : NextResponse.redirect(new URL("/login", request.url));
+    if (idleExpired) {
+      const lockedSession = await getIronSession<SessionData>(request, denied, sessionOptions);
+      lockedSession.isLoggedIn = false;
+      lockedSession.lastSeen = undefined;
+      await lockedSession.save();
     }
-    return NextResponse.redirect(new URL("/login", request.url));
+    return denied;
   }
 
   if (pathname === "/") {
     return NextResponse.redirect(new URL("/transactions", request.url));
+  }
+
+  if (now - session.lastSeen! > LAST_SEEN_REFRESH_MS) {
+    session.lastSeen = now;
+    await session.save();
   }
 
   return response;

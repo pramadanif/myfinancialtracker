@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { ActivityModeBanners } from "@/components/checkin/CheckinModeToggle";
+import IdleLock from "@/components/layout/IdleLock";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -16,6 +17,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     >
       {/* Subtle phone-frame shadow on larger screens */}
       <div className="min-h-screen w-full max-w-full overflow-x-hidden shadow-[0_0_0_1px_rgba(0,0,0,0.04)]">
+        {!isLogin && <IdleLock />}
         <ActivityModeBanners />
         {children}
       </div>

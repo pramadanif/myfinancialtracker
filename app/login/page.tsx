@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Delete } from "lucide-react";
+import { Delete, ScanFace } from "lucide-react";
+import { startAuthentication } from "@simplewebauthn/browser";
 import AppLogo from "@/components/ui/AppLogo";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,47 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(false);
+  const [passkeyEnabled, setPasskeyEnabled] = useState(false);
+  const autoTried = useRef(false);
+
+  const unlockWithPasskey = useCallback(async (auto = false) => {
+    setError("");
+    setLoading(true);
+    try {
+      const optionsRes = await fetch("/api/auth/passkey/login/options", { method: "POST" });
+      if (!optionsRes.ok) throw new Error("Face ID belum diaktifkan");
+      const optionsJSON = await optionsRes.json();
+      const response = await startAuthentication({ optionsJSON });
+      const verifyRes = await fetch("/api/auth/passkey/login/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ response }),
+      });
+      if (!verifyRes.ok) throw new Error((await verifyRes.json()).error || "Verifikasi gagal");
+      router.replace("/transactions");
+      router.refresh();
+    } catch (err) {
+      const cancelled = err instanceof Error && err.name === "NotAllowedError";
+      if (!auto && !cancelled) {
+        setError(err instanceof Error ? err.message : "Face ID gagal. Pakai PIN.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    fetch("/api/auth/passkey/status", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { enabled: false }))
+      .then(({ enabled }) => {
+        setPasskeyEnabled(!!enabled);
+        if (enabled && !autoTried.current) {
+          autoTried.current = true;
+          unlockWithPasskey(true);
+        }
+      })
+      .catch(() => setPasskeyEnabled(false));
+  }, [unlockWithPasskey]);
 
   const submitPin = useCallback(async (value: string) => {
     setError("");
@@ -27,7 +69,7 @@ export default function LoginPage() {
       });
 
       if (res.ok) {
-        router.push("/transactions");
+        router.replace("/transactions");
         router.refresh();
       } else {
         setShake(true);
@@ -68,7 +110,9 @@ export default function LoginPage() {
           <div className="text-center mb-10">
             <AppLogo size={80} className="mx-auto mb-5" />
             <h1 className="text-2xl font-bold text-text-primary tracking-tight">Finance Tracker</h1>
-            <p className="text-sm text-text-secondary mt-2">Masukkan PIN untuk melanjutkan</p>
+            <p className="text-sm text-text-secondary mt-2">
+              {passkeyEnabled ? "Buka dengan Face ID atau PIN" : "Masukkan PIN untuk melanjutkan"}
+            </p>
           </div>
 
           {/* PIN dots */}
@@ -106,7 +150,20 @@ export default function LoginPage() {
           <div className="grid grid-cols-3 gap-3 max-w-[280px] mx-auto">
             {keys.map((key, i) => {
               if (key === "") {
-                return <div key={i} />;
+                return passkeyEnabled ? (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => unlockWithPasskey()}
+                    disabled={loading}
+                    className="h-16 flex items-center justify-center rounded-2xl text-primary active:bg-primary-50 transition-colors disabled:opacity-40"
+                    aria-label="Buka dengan Face ID"
+                  >
+                    <ScanFace size={26} strokeWidth={1.75} />
+                  </button>
+                ) : (
+                  <div key={i} />
+                );
               }
               if (key === "del") {
                 return (
@@ -139,7 +196,7 @@ export default function LoginPage() {
       </div>
 
       <p className="text-center text-2xs text-text-tertiary pb-6">
-        Sesi aktif 3 bulan · Data tersimpan aman
+        Terkunci otomatis 10 menit setelah keluar app
       </p>
     </div>
   );

@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
 
   const session = await getSession();
   session.isLoggedIn = true;
+  session.lastSeen = Date.now();
   await session.save();
 
   return NextResponse.json({ success: true });

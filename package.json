@@ -25,6 +25,8 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.3",
     "date-fns": "^3.6.0",
     "iron-session": "^8.0.4",
     "lucide-react": "^1.25.0",
